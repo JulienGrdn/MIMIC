@@ -37,14 +37,14 @@ MIMIC is a comprehensive GUI application designed for controlling and orchestrat
 To launch the main application (requires a running MQTT broker):
 
 ```bash
-python MIMIC.py
+src/venv/bin/python MIMIC.py
 ```
 
 ### Running in Simulation Mode
 To explore the interface without a real MQTT broker, use the simulation script. This mode uses a mock backend to simulate device responses.
 
 ```bash
-python example/run_simulation.py
+src/venv/bin/python example/run_simulation.py
 ```
 
 ## Configuration Guide: Adding a Device
