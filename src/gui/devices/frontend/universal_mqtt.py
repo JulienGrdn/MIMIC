@@ -1,6 +1,7 @@
 from PyQt6.QtCore import pyqtSignal, QObject
 from src.gui.devices.frontend.generic_mqtt_device import GenericMqttDevice
 
+
 class UniversalMqttDevice(GenericMqttDevice):
     """
     A generic MQTT device driver that can handle multiple channels/parameters dynamically.
@@ -8,23 +9,40 @@ class UniversalMqttDevice(GenericMqttDevice):
     """
     message_received_signal = pyqtSignal(str, str)
 
-    def __init__(self, base_topic, broker_address="localhost"):
+    def __init__(self, base_topic, broker_address="127.0.0.1"):
         super().__init__(base_topic, broker_address)
         self.subscriptions = set()
+
+        self.mqtt.connection_status.connect(self._on_connection_change)
 
     def subscribe_param(self, suffix):
         """
         Subscribes to base_topic + "/" + suffix.
         """
-        full_topic = f"{self.topic_base}/{suffix}"
+        clean_base = self.topic_base.rstrip('/')
+        clean_suffix = suffix.lstrip('/')
+        full_topic = f"{clean_base}/{clean_suffix}"
+
         if full_topic not in self.subscriptions:
-            self.mqtt.subscribe(full_topic)
             self.subscriptions.add(full_topic)
+            self.mqtt.subscribe(full_topic)
+
         try:
-             self.mqtt.message_received.disconnect(self._on_global_message)
+            self.mqtt.message_received.disconnect(self._on_global_message)
         except:
-             pass
+            pass
         self.mqtt.message_received.connect(self._on_global_message)
+
+    def _on_connection_change(self, connected):
+        """
+        Triggered when MqttHandler connects or disconnects.
+        If we just connected, we must RE-SUBSCRIBE to everything.
+        """
+        if connected:
+            print(f"[{self.topic_base}] Reconnected! Restoring {len(self.subscriptions)} subscriptions...")
+            for topic in self.subscriptions:
+                self.mqtt.subscribe(topic)
+                print(f"   -> Resubscribed to {topic}")
 
     def publish_param(self, suffix, value):
         """
@@ -37,6 +55,7 @@ class UniversalMqttDevice(GenericMqttDevice):
         """
         Filters messages. If topic starts with base_topic, emit signal with suffix.
         """
+        print(f"DEBUG MQTT RAW: {topic} -> {payload}")
         if topic.startswith(self.topic_base):
             if len(topic) > len(self.topic_base):
                 suffix = topic[len(self.topic_base):].lstrip('/')
