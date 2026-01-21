@@ -55,7 +55,6 @@ class UniversalMqttDevice(GenericMqttDevice):
         """
         Filters messages. If topic starts with base_topic, emit signal with suffix.
         """
-        print(f"DEBUG MQTT RAW: {topic} -> {payload}")
         if topic.startswith(self.topic_base):
             if len(topic) > len(self.topic_base):
                 suffix = topic[len(self.topic_base):].lstrip('/')
