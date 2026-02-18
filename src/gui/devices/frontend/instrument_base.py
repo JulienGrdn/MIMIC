@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Iterable
 from PyQt6.QtCore import QObject
 
 @dataclass
@@ -12,7 +12,10 @@ class Parameter:
     unit: str = ""
     nickname: str = ""
     _access: str = ""
-    
+    payload_format: Optional[Iterable[tuple]] = None
+    payload_type: Optional[str] = None
+    payload_value_location: Optional = None
+
     update_widgets: list[Callable[[Any], None]] = None
     update_widget_styles: list[Callable[[str], None]] = None
     update_readouts: list[Callable[[str], None]] = None
@@ -21,6 +24,9 @@ class Parameter:
 
     current_value: float = 0.0
     stable: bool = False
+
+    def __post_init__(self):
+        if self.payload_format: self.payload_type, self.payload_value_location = eval(self.payload_format)
 
     @property
     def update_widget(self):
@@ -125,10 +131,13 @@ class Parameter:
             for cb in self.update_readout_richs: cb(text)
         self.update_current_value(value)
 
-
     @property
     def scannable(self) -> bool:
         return 'write' in self._access
+
+    def format_payload(self, payload):
+        if self.payload_type in ('list','dict'): return eval(payload)[self.payload_value_location]
+        else: return payload
 
 class InstrumentBase(QObject):
     def __init__(self, name):

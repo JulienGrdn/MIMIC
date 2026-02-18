@@ -7,6 +7,7 @@ from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
+# CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
 CONFIG_PATH = 'config/devices_configuration.yaml'
 
 def load_yaml_config():
@@ -46,6 +47,7 @@ class GenericYamlDevice(InstrumentBase):
         p_type = chan_config.get('type', 'str')
         unit = chan_config.get('unit', '')
         access = chan_config.get('access', 'read_write')
+        payload_format = chan_config.get('mqtt_payload_format', None)
 
         internal_type = 'str'
         if p_type == 'integer': internal_type = 'int'
@@ -68,7 +70,8 @@ class GenericYamlDevice(InstrumentBase):
             param_type=ui_type,
             unit=unit,
             set_cmd=setter,
-            get_cmd=None
+            get_cmd=None,
+            payload_format=payload_format
         )
 
         status_suffix = chan_config.get('status_suffix')
@@ -107,9 +110,7 @@ class GenericYamlDevice(InstrumentBase):
                 if hasattr(param, '_command_suffix') and param._command_suffix == suffix:
                     if  'SET/frequency' in suffix:
                         self.setpoint = value
-                        # print("FHJIOUHWEFOIIHWEOFIHOWEIFHOIWEFHOIWEFH")
                         if hasattr(param, 'notify_readout_rich_freq'):
-                            # print('MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM')
                             param.notify_readout_rich_freq(param.update_current_value(), stable=False)
                             self.wm_history[param.name] = deque(maxlen=10) #hardreset
 
@@ -118,6 +119,8 @@ class GenericYamlDevice(InstrumentBase):
     def on_mqtt_message(self, suffix, payload):
         for param in self.get_all_params():
             if hasattr(param, '_status_suffix') and param._status_suffix == suffix:
+                if param.payload_format:
+                    payload = param.format_payload(payload)
 
                 if param.param_type == 'wm_freq':
                     try:

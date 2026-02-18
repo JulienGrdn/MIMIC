@@ -12,6 +12,7 @@ devices:
         label: "Voltage (Ch1)"
         description: "Output voltage for Channel 1"
         type: "float"
+        mqtt_payload_format: "('dict', 'voltage')" # dictionnary, key -> into a tuple
         access: "read_write"
         unit: "V"
         status_suffix: "voltage/1"   
@@ -21,6 +22,7 @@ devices:
         label: "Current (Ch1)"
         description: "Output current for Channel 1"
         type: "float"
+        mqtt_payload_format: "('list', 1)" #list, position in list -> into a tuple
         access: "read_write"
         unit: "A"
         status_suffix: "current/1"
