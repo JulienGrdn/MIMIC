@@ -70,6 +70,7 @@ Each channel in the `channels` list can have the following properties:
 -   `key`: A unique key for the channel.
 -   `label`: The label displayed in the GUI.
 -   `type`: The data type (`float`, `integer`, `boolean`, `str`).
+-   `mqtt_payload_format`: Position of the value [Optional] `"(type (list, dict), key)"`
 -   `access`: The access mode (`read`, `write`, `read_write`).
 -   `unit`: The unit of measurement (e.g., "V", "A").
 -   `status_suffix`: The MQTT topic suffix for receiving status updates.
@@ -92,6 +93,7 @@ devices:
         label: "Voltage (Ch1)"
         description: "Output voltage for Channel 1"
         type: "float"
+        mqtt_payload_format: "('dict', 'voltage')"
         access: "read_write"
         unit: "V"
         status_suffix: "voltage/1"
