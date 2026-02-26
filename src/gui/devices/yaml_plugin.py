@@ -7,8 +7,9 @@ from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
-# CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
-CONFIG_PATH = 'config/devices_configuration.yaml'
+CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
+# CONFIG_PATH = 'config/devices_configuration.yaml'
+
 
 def load_yaml_config():
     if not os.path.exists(CONFIG_PATH):
@@ -32,14 +33,38 @@ class GenericYamlDevice(InstrumentBase):
         self.setpoint = None
 
         # Storage for Wavemeter stability analysis
-        self.wm_history = {}      # param.name -> deque of recent values
-        self.wm_stds = {}         # param.name -> last calculated std
+        self.wm_history = {}  # param.name -> deque of recent values
+        self.wm_stds = {}  # param.name -> last calculated std
         self.wm_last_values = {}  # param.name -> last received value
+
+        # 1. Create empty routing maps for both incoming and outgoing MQTT topics
+        self._status_map = {}
+        self._command_map = {}
 
         for channel in device_config.get('channels', []):
             self._add_yaml_channel(channel)
 
         self.connect_instrument()
+
+        # 2. Populate dictionaries immediately after parameters are created
+        self._build_suffix_maps()
+
+    def _build_suffix_maps(self):
+        """
+        Pre-computes the parameter routing for O(1) MQTT lookups.
+        Runs only once at startup.
+        """
+        self._status_map.clear()
+        self._command_map.clear()
+
+        for param in self.get_all_params():
+            if hasattr(param, '_status_suffix') and param._status_suffix:
+                self._status_map[param._status_suffix] = param
+
+            if hasattr(param, '_command_suffix') and param._command_suffix:
+                self._command_map[param._command_suffix] = param
+
+        print(f"Mapped {len(self._status_map)} status and {len(self._command_map)} command topics for fast routing.")
 
     def _add_yaml_channel(self, chan_config):
         key = chan_config.get('key')
@@ -50,16 +75,19 @@ class GenericYamlDevice(InstrumentBase):
         payload_format = chan_config.get('mqtt_payload_format', None)
 
         internal_type = 'str'
-        if p_type == 'integer': internal_type = 'int'
-        elif p_type == 'float': internal_type = 'float'
-        elif p_type == 'boolean': internal_type = 'bool'
+        if p_type == 'integer':
+            internal_type = 'int'
+        elif p_type == 'float':
+            internal_type = 'float'
+        elif p_type == 'boolean':
+            internal_type = 'bool'
 
         setter = None
         cmd_suffix = chan_config.get('command_suffix')
         ui_type = internal_type
         if access == 'read':
             ui_type = 'input'
-        if 'WM' in  self.mqtt_base:
+        if 'WM' in self.mqtt_base:
             ui_type = 'wm_freq'
         if access in ['read_write', 'write'] and cmd_suffix:
             setter = partial(self.set_value_wrapper, cmd_suffix)
@@ -95,7 +123,6 @@ class GenericYamlDevice(InstrumentBase):
             self.driver = UniversalMqttDevice(self.mqtt_base, broker_address=BROKER)
             for param in self.get_all_params():
                 if hasattr(param, '_status_suffix') and param._status_suffix:
-                    #print(param._status_suffix)
                     self.driver.subscribe_param(param._status_suffix)
 
             self.driver.message_received_signal.connect(self.on_mqtt_message)
@@ -106,75 +133,85 @@ class GenericYamlDevice(InstrumentBase):
 
     def set_value_wrapper(self, suffix, value):
         if self.driver:
-            for param in self.get_all_params():
-                if hasattr(param, '_command_suffix') and param._command_suffix == suffix:
-                    if  'SET/frequency' in suffix:
-                        self.setpoint = value
-                        if hasattr(param, 'notify_readout_rich_freq'):
-                            param.notify_readout_rich_freq(param.update_current_value(), stable=False)
-                            self.wm_history[param.name] = deque(maxlen=10) #hardreset
+            # O(1) dictionary lookup instead of looping through all parameters
+            param = self._command_map.get(suffix)
+
+            if param:
+                if 'SET/frequency' in suffix:
+                    self.setpoint = value
+                    if hasattr(param, 'notify_readout_rich_freq'):
+                        param.notify_readout_rich_freq(param.update_current_value(), stable=False)
+                        self.wm_history[param.name] = deque(maxlen=10)  # hardreset
 
             self.driver.publish_param(suffix, value)
 
     def on_mqtt_message(self, suffix, payload):
-        for param in self.get_all_params():
-            if hasattr(param, '_status_suffix') and param._status_suffix == suffix:
-                if param.payload_format:
-                    payload = param.format_payload(payload)
+        # O(1) dictionary lookup instead of looping through all parameters
+        param = self._status_map.get(suffix)
+        if not param:
+            return
 
-                if param.param_type == 'wm_freq':
-                    try:
-                        val = float(payload)
-                    except ValueError:
-                        val = 0.0
+        if param.payload_format:
+            payload = param.format_payload(payload)
 
-                    if param.name not in self.wm_history:
-                        self.wm_history[param.name] = deque(maxlen=10)
+        if param.param_type == 'wm_freq':
+            try:
+                val = float(payload)
+            except ValueError:
+                val = 0.0
 
-                    self.wm_history[param.name].append(val)
-                    self.wm_last_values[param.name] = val
+            if param.name not in self.wm_history:
+                self.wm_history[param.name] = deque(maxlen=10)
 
-                    hist = list(self.wm_history[param.name])
-                    if len(hist) > 1:
-                        avg = sum(hist) / len(hist)
-                        variance = sum((x - avg) ** 2 for x in hist) / len(hist)
-                        std = math.sqrt(variance)
-                    else:
-                        std = 1.0 # Default high std if insufficient data
+            history = self.wm_history[param.name]
+            history.append(val)
+            self.wm_last_values[param.name] = val
 
-                    self.wm_stds[param.name] = std
+            hist_len = len(history)
+            if hist_len > 1:
+                avg = sum(history) / hist_len
+                variance = sum((x - avg) ** 2 for x in history) / hist_len
+                std = math.sqrt(variance)
+            else:
+                std = 1.0  # Default high std if insufficient data
 
-                    # Determine Stability Criteria
-                    # Filter std values < 10 MHz (0.00001 THz)
-                    threshold_thz = 0.00005
-                    filtered_stds = [s for s in self.wm_stds.values() if s < threshold_thz]
+            self.wm_stds[param.name] = std
 
-                    if filtered_stds:
-                        averaged_std = sum(filtered_stds) / len(filtered_stds)
-                    else:
-                        averaged_std = 0.0
+            # Determine Stability Criteria
+            threshold_thz = 0.00005
+            filtered_sum = 0.0
+            filtered_count = 0
 
-                    p_std = self.wm_stds.get(param.name, 1.0)
-                    if self.setpoint is not None: is_stable = p_std < averaged_std*2 and  val*1e6 in range(int((val-averaged_std*2)*1e6), int((val+averaged_std*2)*1e6))
-                    else:is_stable = p_std < averaged_std*2
+            for s in self.wm_stds.values():
+                if s < threshold_thz:
+                    filtered_sum += s
+                    filtered_count += 1
 
-                    param.stable = is_stable
+            averaged_std = (filtered_sum / filtered_count) if filtered_count > 0 else 0.0
+            p_std = self.wm_stds.get(param.name, 1.0)
 
-                    if hasattr(param, 'notify_readout_rich_freq'):
-                        param.notify_readout_rich_freq(val, stable=is_stable)
+            # Optimized bounds checking
+            margin = averaged_std * 2
+            if self.setpoint is not None:
+                lower_bound = val - margin
+                upper_bound = val + margin
+                is_stable = (p_std < margin) and (lower_bound <= val <= upper_bound)
+            else:
+                is_stable = p_std < margin
 
-                elif param.param_type == 'bool':
-                    if hasattr(param, 'notify_widget'):
-                        param.notify_widget(payload)
+            param.stable = is_stable
 
-                # If param is read_write, update READOUT label
-                else:
-                    if hasattr(param, 'notify_readout'):
-                        param.notify_readout_rich_parameter(payload)
+            if hasattr(param, 'notify_readout_rich_freq'):
+                param.notify_readout_rich_freq(val, stable=is_stable)
 
+        elif param.param_type == 'bool':
+            if hasattr(param, 'notify_widget'):
+                param.notify_widget(payload)
 
-
-
+        # If param is read_write, update READOUT label
+        else:
+            if hasattr(param, 'notify_readout'):
+                param.notify_readout_rich_parameter(payload)
 
 
 config_data = load_yaml_config()
@@ -185,10 +222,13 @@ if config_data:
 
         class_name = f"GenDevice_{dev_id}"
 
+
         def make_class(conf):
             class DynamicDevice(GenericYamlDevice):
                 def __init__(self):
                     super().__init__(conf)
+
             return DynamicDevice
+
 
         vars()[class_name] = make_class(dev_conf)

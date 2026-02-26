@@ -33,6 +33,8 @@ class GraphBlock(QFrame):
         self.data_x = deque()
         self.data_y = deque()
         self.start_time = time.time()
+        self.needs_redraw = False
+        self.latest_value = 0.0
 
         self.active_hook_param = None
         self.active_original_callback = None
@@ -40,9 +42,12 @@ class GraphBlock(QFrame):
         self.paused = False
         self.init_ui()
 
-        self.cleanup_timer = QTimer()
-        self.cleanup_timer.timeout.connect(self._cleanup_data)
-        self.cleanup_timer.start(1000)
+        self.render_timer = QTimer()
+        self.render_timer.timeout.connect(self._update_plot)
+        self.render_timer.start(100) #Update rate 10Hz
+        # self.cleanup_timer = QTimer()
+        # self.cleanup_timer.timeout.connect(self._cleanup_data)
+        # self.cleanup_timer.start(1000)
 
     def init_ui(self):
         self.setFrameShape(QFrame.Shape.StyledPanel)
@@ -116,6 +121,8 @@ class GraphBlock(QFrame):
         self.graph = Graph()
         #self.graph.setFixedHeight(300)
         #self.graph.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.graph.line_curve.setDownsampling(auto=True, method='peak')
+        self.graph.line_curve.setClipToView(True)
         layout.addWidget(self.graph)
 
         self.apply_theme()
@@ -210,11 +217,7 @@ class GraphBlock(QFrame):
         self.graph.getPlotItem().setLabel('left', param.label or param.name, units=param.unit)
         self.graph.getPlotItem().setLabel('bottom', 'Time', units='s')
 
-
     def _record_value(self, value):
-        self.lbl_current_value.setText(f"Value: {float(value):.6f}")
-        # print(value)
-
         if self.paused:
             return
 
@@ -223,11 +226,23 @@ class GraphBlock(QFrame):
             val = float(value)
         except (ValueError, TypeError) as e:
             print(e)
+            return
 
         self.data_x.append(t)
         self.data_y.append(val)
+        self.latest_value = val
+        self.needs_redraw = True # New data is available for render cycle
 
-        self.graph.line_curve.setData(list(self.data_x), list(self.data_y))
+    def _update_plot(self):
+        if self.needs_redraw and not self.paused:
+            self.lbl_current_value.setText(f"Value: {self.latest_value:.6f}")
+            try:
+                self.graph.line_curve.setData(list(self.data_x), list(self.data_y))
+                self.needs_redraw = False
+                self._cleanup_data()
+            except RuntimeError:
+                pass
+
 
     def _cleanup_data(self):
         if not self.data_x:
@@ -239,6 +254,7 @@ class GraphBlock(QFrame):
         while self.data_x and self.data_x[0] < limit_t:
             self.data_x.popleft()
             self.data_y.popleft()
+
 
     def start_graph(self):
         self.paused = False
