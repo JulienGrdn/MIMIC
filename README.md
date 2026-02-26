@@ -2,6 +2,11 @@
 
 MIMIC is a comprehensive GUI application designed for controlling and orchestrating scientific instruments via MQTT. It provides a flexible frontend interface to interact with devices, monitor their status, and send commands, acting as a centralized hub for laboratory operations and active hardware management.
 
+<img src="src/gui/assets/MIMIC.svg" alt="Logo" width="128"/>
+
+
+Vectors and icons by <a href="https://www.svgrepo.com" target="_blank">SVG Repo</a>
+
 ## Features
 
 - **Dynamic Device Configuration**: Easily add and configure new devices using a YAML configuration file.

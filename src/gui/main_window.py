@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QComboBox,
     QCheckBox,
-    QPushButton
+    QPushButton, QApplication
 )
 from src.gui.assets.csstyle import Style
 from src.gui.assets.theme_manager import ThemeManager
@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("MIMIC")
+        self.setup_os_identity()
         self.resize(1000, 650)
 
         central_widget = QWidget()
@@ -147,3 +148,30 @@ class MainWindow(QMainWindow):
 
         except Exception as e:
             print(f"Error loading UI state: {e}")
+
+    def setup_os_identity(self):
+        """
+        Sets the application ID so the Taskbar/Dock icon groups correctly
+        and doesn't show up as a generic Python launcher.
+        """
+        app_id = "com.github.juliengrdn.mimic"
+        assets_dir = os.path.join(os.getcwd(), 'src', 'gui', 'assets')
+        icon_path = os.path.join(assets_dir, 'MIMIC.ico')
+
+        if os.path.exists(icon_path):
+            from PyQt6.QtGui import QIcon
+            self.setWindowIcon(QIcon(icon_path))
+
+        app = QApplication.instance()
+        if app:
+            app.setApplicationName("MIMIC")
+            app.setApplicationDisplayName("MIMIC")
+            app.setOrganizationName("JulienGrdn")
+            app.setOrganizationDomain("github.com")
+
+        if sys.platform == 'win32':
+            import ctypes
+            try:
+                ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+            except (AttributeError, OSError):
+                pass
