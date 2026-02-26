@@ -168,6 +168,9 @@ class MainWindow(QMainWindow):
             app.setApplicationDisplayName("MIMIC")
             app.setOrganizationName("JulienGrdn")
             app.setOrganizationDomain("github.com")
+            
+        if 'linux' in sys.platform:
+            app.setDesktopFileName(app_id)
 
         if sys.platform == 'win32':
             import ctypes
