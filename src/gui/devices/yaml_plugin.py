@@ -7,8 +7,8 @@ from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
-CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
-# CONFIG_PATH = 'config/devices_configuration.yaml'
+# CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
+CONFIG_PATH = 'config/devices_configuration.yaml'
 
 
 def load_yaml_config():
@@ -37,7 +37,6 @@ class GenericYamlDevice(InstrumentBase):
         self.wm_stds = {}  # param.name -> last calculated std
         self.wm_last_values = {}  # param.name -> last received value
 
-        # 1. Create empty routing maps for both incoming and outgoing MQTT topics
         self._status_map = {}
         self._command_map = {}
 
@@ -45,8 +44,6 @@ class GenericYamlDevice(InstrumentBase):
             self._add_yaml_channel(channel)
 
         self.connect_instrument()
-
-        # 2. Populate dictionaries immediately after parameters are created
         self._build_suffix_maps()
 
     def _build_suffix_maps(self):
@@ -190,7 +187,6 @@ class GenericYamlDevice(InstrumentBase):
             averaged_std = (filtered_sum / filtered_count) if filtered_count > 0 else 0.0
             p_std = self.wm_stds.get(param.name, 1.0)
 
-            # Optimized bounds checking
             margin = averaged_std * 2
             if self.setpoint is not None:
                 lower_bound = val - margin
