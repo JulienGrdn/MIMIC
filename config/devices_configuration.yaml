@@ -6,21 +6,23 @@ devices:
     nickname: "DPS"
     device_cat: "Power Supply"
     mqtt_base_topic: "powersupply/serial_number"
-    
+
     channels:
       - key: "voltage_ch1"
         label: "Voltage (Ch1)"
         description: "Output voltage for Channel 1"
         type: "float"
+        mqtt_payload_format: "('dict', 'voltage')" # dictionnary, key -> into a tuple
         access: "read_write"
         unit: "V"
-        status_suffix: "voltage/1"   
-        command_suffix: "SET/voltage/1" 
+        status_suffix: "voltage/1"
+        command_suffix: "SET/voltage/1"
 
       - key: "current_ch1"
         label: "Current (Ch1)"
         description: "Output current for Channel 1"
         type: "float"
+        mqtt_payload_format: "('list', 1)" #list, position in list -> into a tuple
         access: "read_write"
         unit: "A"
         status_suffix: "current/1"

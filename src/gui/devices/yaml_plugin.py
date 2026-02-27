@@ -7,7 +7,6 @@ from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
-# CONFIG_PATH = 'example/devices_configuration.yaml' #For test with fake backend
 CONFIG_PATH = 'config/devices_configuration.yaml'
 
 
@@ -123,7 +122,6 @@ class GenericYamlDevice(InstrumentBase):
                     self.driver.subscribe_param(param._status_suffix)
 
             self.driver.message_received_signal.connect(self.on_mqtt_message)
-            self.driver.mqtt.start()
 
         except Exception as e:
             print(f"[{self.name}] Connection failed: {e}")
@@ -143,7 +141,7 @@ class GenericYamlDevice(InstrumentBase):
             self.driver.publish_param(suffix, value)
 
     def on_mqtt_message(self, suffix, payload):
-        # O(1) dictionary lookup instead of looping through all parameters
+
         param = self._status_map.get(suffix)
         if not param:
             return

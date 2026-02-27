@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Any, Optional, Iterable
 from PyQt6.QtCore import QObject
+import ast
 
 @dataclass
 class Parameter:
@@ -26,7 +27,8 @@ class Parameter:
     stable: bool = False
 
     def __post_init__(self):
-        if self.payload_format: self.payload_type, self.payload_value_location = eval(self.payload_format)
+        if self.payload_format:
+            self.payload_type, self.payload_value_location = ast.literal_eval(self.payload_format)
 
     @property
     def update_widget(self):
@@ -136,8 +138,15 @@ class Parameter:
         return 'write' in self._access
 
     def format_payload(self, payload):
-        if self.payload_type in ('list','dict'): return eval(payload)[self.payload_value_location]
-        else: return payload
+        if self.payload_type in ('list', 'dict'):
+            try:
+                parsed_payload = ast.literal_eval(payload)
+                return parsed_payload[self.payload_value_location]
+            except (ValueError, SyntaxError, KeyError, TypeError) as e:
+                print(f"Payload parsing error: {e}. Raw payload: {payload}")
+                return payload
+        else:
+            return payload
 
 class InstrumentBase(QObject):
     def __init__(self, name):

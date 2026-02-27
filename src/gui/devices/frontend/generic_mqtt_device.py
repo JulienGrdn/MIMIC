@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from src.gui.devices.frontend.mqtt_handler import MqttHandler
+from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler
 
 class GenericMqttDevice(QObject):
     """
@@ -9,8 +9,7 @@ class GenericMqttDevice(QObject):
     def __init__(self, topic_base, broker="localhost"):
         super().__init__()
         self.topic_base = topic_base
-        self.mqtt = MqttHandler(broker_address=broker)
-        self.mqtt.start()
+        self.mqtt = get_shared_handler(broker)
 
     def publish_set(self, subtopic, value):
         """Publishes a value to topic_base/subtopic/set"""

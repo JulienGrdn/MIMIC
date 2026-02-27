@@ -6,7 +6,7 @@ import os
 
 # Configuration
 YAML_FILE = 'example/devices_configuration.yaml'
-PUBLISH_INTERVAL = .5  # Seconds between updates
+PUBLISH_INTERVAL = .01  # Seconds between updates
 
 def load_config(path):
     if not os.path.exists(path):
@@ -76,9 +76,9 @@ def main():
                         
                         # Publish
                         client.publish(topic, val)
-                        print(f"[{device['nickname']}] Published {val} to {topic}")
+                        #print(f"[{device['nickname']}] Published {val} to {topic}")
 
-            print("-" * 30)
+            #print("-" * 30)
             time.sleep(PUBLISH_INTERVAL)
 
     except KeyboardInterrupt:

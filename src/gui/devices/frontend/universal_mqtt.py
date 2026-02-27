@@ -14,6 +14,7 @@ class UniversalMqttDevice(GenericMqttDevice):
         self.subscriptions = set()
 
         self.mqtt.connection_status.connect(self._on_connection_change)
+        self.mqtt.message_received.connect(self._on_global_message)
 
     def subscribe_param(self, suffix):
         """
@@ -26,12 +27,12 @@ class UniversalMqttDevice(GenericMqttDevice):
         if full_topic not in self.subscriptions:
             self.subscriptions.add(full_topic)
             self.mqtt.subscribe(full_topic)
-
-        try:
-            self.mqtt.message_received.disconnect(self._on_global_message)
-        except:
-            pass
-        self.mqtt.message_received.connect(self._on_global_message)
+        #
+        # try:
+        #     self.mqtt.message_received.disconnect(self._on_global_message)
+        # except:
+        #     pass
+        # self.mqtt.message_received.connect(self._on_global_message)
 
     def _on_connection_change(self, connected):
         """
