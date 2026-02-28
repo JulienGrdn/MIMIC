@@ -1,4 +1,4 @@
-import os
+import sys
 import importlib.util
 from collections import defaultdict
 from typing import List, Optional
@@ -21,6 +21,8 @@ from src.gui.assets.theme_manager import ThemeManager
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.widgets.smaller_toggle import AnimatedToggle
 from src.gui.widgets.flow_layout import FlowLayout
+from src.gui.assets.instance_state import InstanceState
+from src.gui.widgets.popups import Popups
 
 class InstrumentFrame(QFrame):
     """
@@ -31,6 +33,7 @@ class InstrumentFrame(QFrame):
         super().__init__()
         self.instrument = instrument
         self.styled_widgets = []
+        self.info_message = Popups()
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -63,7 +66,7 @@ class InstrumentFrame(QFrame):
             row_layout.addWidget(label)
 
         input_widget = self._create_input_widget(param, row_layout)
-        if param.param_type != "bool" and param.param_type != 'input' :  # a bit messy this func
+        if param.param_type != "bool" and param.param_type != 'input':  # a bit messy this func
             btn = QPushButton("Send")
             btn.setStyleSheet(Style.Button.suggested)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -99,7 +102,7 @@ class InstrumentFrame(QFrame):
                 param.update_widget = widget.set_state
 
             return widget
-        
+
         elif param.param_type in ["float", "int", "str", 'wm_freq']:
             widget = QLineEdit()
             widget.setObjectName(f"inst_{self.instrument.id}_{param.name}")
@@ -107,7 +110,7 @@ class InstrumentFrame(QFrame):
             widget.setPlaceholderText(str(param.unit))
             parent_layout.addWidget(widget)
             if hasattr(param, 'update_widget'):
-                 param.update_widget = widget.setText
+                param.update_widget = widget.setText
             return widget
 
         elif param.param_type == 'input':
@@ -123,19 +126,27 @@ class InstrumentFrame(QFrame):
         return QWidget()
 
     def send_command(self, param: Parameter, value):
-            """Handles type conversion and execution of the instrument command."""
-            try:
-                if param.param_type == "float":
-                    value = float(value)
-                elif param.param_type == "int":
-                    value = int(value)
+        """
+        Handles type conversion and execution of the instrument command.
+        If this instance is a slave, shows an informational popup instead of sending.
+        """
+        if not InstanceState.is_master():
+            self.info_message.read_only(self)
+            return
 
-                if param.set_cmd:
-                    param.set_cmd(value)
-                    print(f"[{self.instrument.name}] Set {param.name} = {value}")
+        try:
+            if param.param_type == "float":
+                value = float(value)
+            elif param.param_type == "int":
+                value = int(value)
 
-            except ValueError:
-                print(f"[{self.instrument.name}] Error: Invalid input for {param.name}")
+            if param.set_cmd:
+                param.set_cmd(value)
+                print(f"[{self.instrument.name}] Set {param.name} = {value}")
+
+        except ValueError:
+            print(f"[{self.instrument.name}] Error: Invalid input for {param.name}")
+
 
     def apply_theme(self):
         theme = ThemeManager.get_theme()
@@ -155,6 +166,7 @@ class InstrumentFrame(QFrame):
                 widget.setStyleSheet(Style.Label.frequency_big_dark if is_dark else Style.Label.frequency_big)
             elif style_key == "Input.line_edit":
                 widget.setStyleSheet(Style.Input.line_edit_dark if is_dark else Style.Input.line_edit_light)
+
 
 class InstrumentPanel(QWidget):
     """
@@ -191,6 +203,7 @@ class InstrumentPanel(QWidget):
     def _load_and_display_devices(self):
         """Loads the specific yaml_plugin.py and builds the UI."""
         self.loaded_instruments = self._import_yaml_instruments()
+        self.sidebar.clear()
         grouped = defaultdict(list)
         for inst in self.loaded_instruments:
             cat = getattr(inst, 'category', 'Uncategorized')
@@ -250,6 +263,11 @@ class InstrumentPanel(QWidget):
             print(f">> [InstrumentPanel] Could not find module: {e}")
         except Exception as e:
             print(f">> [InstrumentPanel] Critical error loading yaml_plugin: {e}")
+
+        finally:
+            sys.modules.pop("src.gui.devices.yaml_plugin", None)
+            if 'yml_module' in locals():
+                del yml_module
 
         return loaded
 
