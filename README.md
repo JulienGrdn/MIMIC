@@ -19,6 +19,7 @@ Vectors and icons by <a href="https://www.svgrepo.com" target="_blank">SVG Repo<
 ![Devices tab](example/screenshots/devices.png)
 ![Live view tab](example/screenshots/live_view.png)
 ![Scan tab](example/screenshots/scan_tab.png)
+![Settings tab](example/screenshots/settings.png)
 
 ## Installation
 

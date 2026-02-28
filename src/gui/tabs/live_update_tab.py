@@ -1,7 +1,6 @@
 import time
 from collections import deque
 from typing import List, Optional
-
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QWidget,

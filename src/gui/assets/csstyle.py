@@ -16,7 +16,7 @@ class Palette:
     L_BORDER_FOCUS  = "#3584E4"   # Focus Ring Blue
 
     # --- Adwaita Dark Theme Palette ---
-    D_BG_MAIN       = "#242424"   # Adwaita Dark Window Background
+    D_BG_MAIN       = "#383838"   # Adwaita Dark Window Background
     D_BG_FRAME_1    = "#292929"   # Cards / Content Views (Lighter than BG)
     D_BG_FRAME_2    = "#383838"   # Secondary backgrounds
     D_TEXT_MAIN     = "#FFFFFF"
