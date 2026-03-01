@@ -1,6 +1,7 @@
 import sys
 import json
 import os
+from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QListWidget, QStackedWidget, QLineEdit, QComboBox, QCheckBox, QPushButton, QApplication
 from src.gui.assets.csstyle import Style
 from src.gui.assets.theme_manager import ThemeManager
@@ -10,7 +11,8 @@ from src.gui.tabs.scan_tab import ScanTab
 from src.gui.tabs.about_tab import AboutTab
 from src.gui.widgets.noscrollcombobox import NSCB
 from src.gui.widgets.smaller_toggle import AnimatedToggle
-from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler
+from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler, stop_all_brokers
+from src.gui.assets.instance_state import STATE_SLAVE, InstanceState
 
 CONFIG_PATH = os.path.join(os.getcwd(), "config", "ui_parameters.json")
 
@@ -63,6 +65,9 @@ class MainWindow(QMainWindow):
         )
         self.stack.addWidget(self.about_page)
 
+        InstanceState.changed.connect(self._on_master_state_changed)
+        QTimer.singleShot(0, lambda: self._on_master_state_changed(InstanceState.state))
+
         # Theme
         ThemeManager.instance().theme_changed.connect(self.apply_theme)
         self.apply_theme(ThemeManager.get_theme())
@@ -90,7 +95,18 @@ class MainWindow(QMainWindow):
         return ""
 
     def display_page(self, index: int):
+        if index == 2 and not self._scan_unlocked:
+            from src.gui.widgets.popups import Popups
+            Popups.read_only(self)
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(0, lambda: self._restore_sidebar(self.stack.currentIndex()))
+            return
         self.stack.setCurrentIndex(index)
+
+    def _restore_sidebar(self, index: int):
+        self.sidebar.blockSignals(True)
+        self.sidebar.setCurrentRow(index)
+        self.sidebar.blockSignals(False)
 
     def _reconnect_broker(self):
         try:
@@ -115,6 +131,26 @@ class MainWindow(QMainWindow):
             return len(instruments)
         except Exception as e:
             print(f"[MainWindow] Reload error: {e}")
+
+
+    def _on_master_state_changed(self, state: str):
+        """
+        Dim the Scan sidebar item when slave.
+        Clicks still fire so display_page can show the popup.
+        """
+        self._scan_unlocked = (state != STATE_SLAVE)
+
+        scan_item = self.sidebar.item(2)
+        if scan_item:
+            if self._scan_unlocked:
+                scan_item.setForeground(
+                    self.sidebar.palette().color(
+                        self.sidebar.palette().ColorRole.Text))
+            else:
+                from PyQt6.QtGui import QColor
+                scan_item.setForeground(QColor("#555" if ThemeManager.get_theme() == "dark" else "#bbb"))
+                if self.stack.currentIndex() == 2:
+                    self.sidebar.setCurrentRow(3)
 
     def apply_theme(self, theme: str = None):
         theme   = theme or ThemeManager.get_theme()
@@ -204,4 +240,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self.save_ui_state()
         self.about_page.release_claim()
+        try:
+            stop_all_brokers()
+        except Exception as e:
+            print(f"[MainWindow] MQTT disconnect error: {e}")
+
 

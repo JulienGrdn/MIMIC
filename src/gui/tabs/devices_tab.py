@@ -2,7 +2,7 @@ import sys
 import importlib.util
 from collections import defaultdict
 from typing import List, Optional
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -34,6 +34,7 @@ class InstrumentFrame(QFrame):
         self.instrument = instrument
         self.styled_widgets = []
         self.info_message = Popups()
+        self._rate_labels: list = []
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
@@ -43,6 +44,10 @@ class InstrumentFrame(QFrame):
 
         for param in self.instrument.get_all_params():
             self._add_parameter_row(param)
+
+        self._rate_timer = QTimer(self)
+        self._rate_timer.timeout.connect(self._refresh_rate_labels)
+        self._rate_timer.start(1000)
 
         self.apply_theme()
 
@@ -59,38 +64,74 @@ class InstrumentFrame(QFrame):
         self.layout.addWidget(line)
 
     def _add_parameter_row(self, param: Parameter):
-        """Creates a labeled row with an input widget (Toggle or LineEdit)."""
+        """Builds the UI row(s) for one parameter."""
+        if param.param_type == 'input':
+            if param.label is not None:
+                title_lbl = QLabel(f"{param.label}")
+                title_lbl.setObjectName(f"title_{id(param)}")
+                self.styled_widgets.append((title_lbl, "Label.channel_title"))
+                self.layout.addWidget(title_lbl)
+
+            value_lbl = QLabel("—")
+            style_key = "Label.parameter"
+            self.styled_widgets.append((value_lbl, style_key))
+
+            if hasattr(param, 'update_readout'):
+                param.update_readout = value_lbl.setText
+            if hasattr(param, 'update_readout_style'):
+                param.update_readout_style = value_lbl.setStyleSheet
+            if hasattr(param, 'update_readout_rich'):
+                param.update_readout_rich = value_lbl.setText
+
+            rate_lbl = QLabel("")
+            rate_lbl.setObjectName(f"rate_{id(param)}")
+            self.styled_widgets.append((rate_lbl, "Label.rate"))
+            self._rate_labels.append((param, rate_lbl))
+
+            value_row = QHBoxLayout()
+            value_row.addWidget(value_lbl)
+            value_row.addStretch()
+            value_row.addWidget(rate_lbl)
+            self.layout.addLayout(value_row)
+            return
+
         row_layout = QHBoxLayout()
         if param.label is not None:
-            label = QLabel(f"{param.label}:")
-            row_layout.addWidget(label)
+            row_layout.addWidget(QLabel(f"{param.label}:"))
 
         input_widget = self._create_input_widget(param, row_layout)
-        if param.param_type != "bool" and param.param_type != 'input':  # a bit messy this func
+        if param.param_type != "bool":
             btn = QPushButton("Send")
             btn.setStyleSheet(Style.Button.suggested)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda: self.send_command(param, input_widget.text()))
             row_layout.addWidget(btn)
 
-            if "read" in param._access:
-                readout_label = QLabel("--")
-                if param.param_type == 'wm_freq':
-                    style_key = "Label.frequency_big"
-                else:
-                    style_key = "Label.parameter"
-
-                self.styled_widgets.append((readout_label, style_key))
-                self.layout.addWidget(readout_label)
-
-                if hasattr(param, 'update_readout'):
-                    param.update_readout = readout_label.setText
-                if hasattr(param, 'update_readout_style'):
-                    param.update_readout_style = readout_label.setStyleSheet
-                if hasattr(param, 'update_readout_rich'):
-                    param.update_readout_rich = readout_label.setText
-
         self.layout.addLayout(row_layout)
+
+        if param.param_type != "bool" and "read" in param._access:
+            readout_label = QLabel("--")
+            style_key = "Label.frequency_big" if param.param_type == 'wm_freq' else "Label.parameter"
+            self.styled_widgets.append((readout_label, style_key))
+
+            if hasattr(param, 'update_readout'):
+                param.update_readout = readout_label.setText
+            if hasattr(param, 'update_readout_style'):
+                param.update_readout_style = readout_label.setStyleSheet
+            if hasattr(param, 'update_readout_rich'):
+                param.update_readout_rich = readout_label.setText
+
+            rate_lbl = QLabel("")
+            rate_lbl.setObjectName(f"rate_{id(param)}")
+            self.styled_widgets.append((rate_lbl, "Label.rate"))
+            self._rate_labels.append((param, rate_lbl))
+
+            readout_row = QHBoxLayout()
+            readout_row.addWidget(readout_label)
+            readout_row.addStretch()
+            readout_row.addWidget(rate_lbl)
+
+            self.layout.addLayout(readout_row)
 
     def _create_input_widget(self, param: Parameter, parent_layout: QHBoxLayout):
         """Helper to create the correct widget type."""
@@ -147,6 +188,15 @@ class InstrumentFrame(QFrame):
         except ValueError:
             print(f"[{self.instrument.name}] Error: Invalid input for {param.name}")
 
+    def _refresh_rate_labels(self):
+        for param, lbl in self._rate_labels:
+            r = param.update_rate_ms
+            if r <= 0:
+                lbl.setText("")
+            elif r < 1000:
+                lbl.setText(f"<html>&#8635; {r:.0f} ms</html>")
+            else:
+                lbl.setText(f"<html>&#8635; {r / 1000:.1f} s</html>")
 
     def apply_theme(self):
         theme = ThemeManager.get_theme()
@@ -166,6 +216,13 @@ class InstrumentFrame(QFrame):
                 widget.setStyleSheet(Style.Label.frequency_big_dark if is_dark else Style.Label.frequency_big)
             elif style_key == "Input.line_edit":
                 widget.setStyleSheet(Style.Input.line_edit_dark if is_dark else Style.Input.line_edit_light)
+            elif style_key == "Label.rate":
+                color = "#555" if is_dark else "#aaa"
+                widget.setStyleSheet(f"font-size: 8pt; color: {color}; font-style: italic;")
+            elif style_key == "Label.channel_title":
+                color = "#aaa" if is_dark else "#888"
+                widget.setStyleSheet(
+                    f"font-size: 8pt; color: {color}; letter-spacing: 0.5px; font-weight: bold; text-transform: uppercase;")
 
 
 class InstrumentPanel(QWidget):

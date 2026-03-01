@@ -10,3 +10,7 @@ def get_shared_handler(broker_address: str) -> MqttHandler:
         _brokers[broker_address] = handler
         print(f"[BrokerRegistry] New connection to {broker_address}")
     return _brokers[broker_address]
+
+def stop_all_brokers():
+    for handler in _brokers.values():
+        handler.stop()

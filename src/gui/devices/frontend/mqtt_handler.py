@@ -35,7 +35,7 @@ class MqttHandler(QObject):
             try:
                 # Fallback attempt: Connect to localhost
                 self.broker = "localhost"
-                self.client.connect("localhost", self.port, 1)
+                self.client.connect("localhost", self.port, 60)
                 self.client.loop_start()
                 print("[MQTT] Connected successfully to localhost fallback")
 
@@ -50,7 +50,7 @@ class MqttHandler(QObject):
 
     def subscribe(self, topic):
         self.client.subscribe(topic)
-        print(f"[MQTT] Subscribed to {topic}")
+        # print(f"[MQTT] Subscribed to {topic}")
 
     def publish(self, topic, payload):
         self.client.publish(topic, payload)

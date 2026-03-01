@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+import time
+from collections import deque
+from dataclasses import dataclass, field
 from typing import Callable, Any, Optional, Iterable
 from PyQt6.QtCore import QObject
 import ast
@@ -25,6 +27,9 @@ class Parameter:
 
     current_value: float = 0.0
     stable: bool = False
+
+    update_rate_ms: float = 0.0
+    _rate_ts: deque = field(default_factory=lambda: deque(maxlen=10), repr=False, compare=False)
 
     def __post_init__(self):
         if self.payload_format:
@@ -70,9 +75,24 @@ class Parameter:
         if self.update_readout_richs is None: self.update_readout_richs = []
         self.update_readout_richs.append(value)
 
+    def _track_rate(self):
+        now = time.monotonic()
+        if self._rate_ts:
+            interval_ms = (now - self._rate_ts[-1]) * 1000.0
+            if 1.0 <= interval_ms <= 60_000:
+                self._rate_ts.append(now)
+                if len(self._rate_ts) > 1:
+                    intervals = [(self._rate_ts[i] - self._rate_ts[i-1]) * 1000.0
+                                 for i in range(1, len(self._rate_ts))]
+                    self.update_rate_ms = sum(intervals) / len(intervals)
+        else:
+            self._rate_ts.append(now)
+
     def update_current_value(self, value = None):
         if value is None: return self.current_value
-        else: self.current_value = value
+        else:
+            self.current_value = value
+            self._track_rate()
 
     # Helper to call all observers
     def notify_widget(self, value):

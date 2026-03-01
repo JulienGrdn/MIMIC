@@ -16,7 +16,7 @@ class Popups:
     @staticmethod
     def read_only(parent: QWidget = None) -> None:
         """
-        Blocking informational dialog shown when a replica instance
+        Blocking informational dialog shown when a LISTENER instance
         tries to send a command to an instrument.
         """
         msg = QMessageBox(parent)
@@ -24,7 +24,7 @@ class Popups:
         msg.setIcon(QMessageBox.Icon.Information)
         msg.setText("<b>This instance is in read-only mode.</b>")
         msg.setInformativeText(
-            f"Commands cannot be sent from a replica instance.<br><br>"
+            f"Commands cannot be sent from a LISTENER instance.<br><br>"
             f"Go to the <i>About</i> tab and click "
             f"<b>Take Master</b> to enable control."
         )

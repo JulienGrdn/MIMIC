@@ -327,7 +327,6 @@ class AboutTab(QWidget):
         if topic != self._master_topic:
             return
         self._claim_timer.stop()
-        print(f"payload= {payload}, type= {type(payload)}")
         if payload == self._client_id:
             self._apply_state(STATE_MASTER)
         elif payload == "":
@@ -353,7 +352,7 @@ class AboutTab(QWidget):
         elif state == STATE_SLAVE:
             self.lbl_master.setText(
                 "<div style='text-align:left;'>"
-                "<b style='color:#e67e22;'>REPLICA</b>"
+                "<b style='color:#e67e22;'>LISTENER</b>"
                 "<span style='font-size:9pt; color:#888;'>&nbsp;&nbsp;read-only</span>"
                 "</div>"
             )
