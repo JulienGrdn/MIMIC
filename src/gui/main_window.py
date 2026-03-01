@@ -3,6 +3,7 @@ import json
 import os
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QListWidget, QStackedWidget, QLineEdit, QComboBox, QCheckBox, QPushButton, QApplication
+from PyQt6.QtGui import QColor
 from src.gui.assets.csstyle import Style
 from src.gui.assets.theme_manager import ThemeManager
 from src.gui.tabs.devices_tab import InstrumentPanel
@@ -147,7 +148,6 @@ class MainWindow(QMainWindow):
                     self.sidebar.palette().color(
                         self.sidebar.palette().ColorRole.Text))
             else:
-                from PyQt6.QtGui import QColor
                 scan_item.setForeground(QColor("#555" if ThemeManager.get_theme() == "dark" else "#bbb"))
                 if self.stack.currentIndex() == 2:
                     self.sidebar.setCurrentRow(3)
@@ -157,6 +157,7 @@ class MainWindow(QMainWindow):
         is_dark = theme == "dark"
         self.setStyleSheet(Style.Default.dark if is_dark else Style.Default.light)
         self.sidebar.setStyleSheet(Style.List.dark if is_dark else Style.List.light)
+        self._on_master_state_changed(InstanceState.state)
         for page in (self.devices_panel, self.live_update_page,
                      self.scan_page, self.about_page):
             if hasattr(page, 'apply_theme'):
