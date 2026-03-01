@@ -1,5 +1,5 @@
 import time
-from collections import deque
+import numpy as np
 from typing import List, Optional
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
@@ -17,6 +17,13 @@ from src.gui.assets.theme_manager import ThemeManager
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.widgets.qtgraph import Graph
 from src.gui.widgets.noscrollcombobox import NSCB
+import math
+
+_LOG_MS_MIN = math.log(16)      # 60 Hz
+_LOG_MS_MAX = math.log(1000)    # 1 Hz
+_LOG_S_MIN = math.log(6)        # 0.1 min
+_LOG_S_MAX = math.log(3600)     # 60 min
+_SLOPE = (_LOG_MS_MAX - _LOG_MS_MIN) / (_LOG_S_MAX - _LOG_S_MIN)  # ~0.647
 
 
 class GraphBlock(QFrame):
@@ -29,8 +36,14 @@ class GraphBlock(QFrame):
         self.instruments = instruments
         self.parent_widget = parent_widget
         self.current_param: Optional[Parameter] = None
-        self.data_x = deque()
-        self.data_y = deque()
+
+        # numpy pre-allocated ring buffer
+        self._buf_size = 100_000
+        self._buf_x = np.empty(self._buf_size, dtype=np.float64)
+        self._buf_y = np.empty(self._buf_size, dtype=np.float64)
+        self._buf_head = 0
+        self._buf_count = 0
+
         self.start_time = time.time()
         self.needs_redraw = False
         self.latest_value = 0.0
@@ -43,7 +56,8 @@ class GraphBlock(QFrame):
 
         self.render_timer = QTimer()
         self.render_timer.timeout.connect(self._update_plot)
-        self.render_timer.start(100) #Update rate 10Hz
+        # self.render_timer.start(33) #Update rate ~30Hz
+
         # self.cleanup_timer = QTimer()
         # self.cleanup_timer.timeout.connect(self._cleanup_data)
         # self.cleanup_timer.start(1000)
@@ -170,12 +184,14 @@ class GraphBlock(QFrame):
         try:
             minutes = float(txt)
             self.max_window_seconds = minutes * 60.0
-            print(f"Graph window set to {minutes} minutes ({self.max_window_seconds}s)")
+            if not self.paused:
+                self.render_timer.start(self._adaptive_refresh_ms())
+            print(f"Graph window set to {minutes} min")
         except ValueError:
             pass
 
     def _on_param_selected(self, index):
-        # DISCONNECT THE OLD PARAMETER FIRST!!!!!!!
+        # DISCONNECT THE OLD PARAMETER FIRST
         self._unhook_current_param()
 
         if index <= 0:
@@ -189,6 +205,7 @@ class GraphBlock(QFrame):
 
         inst, param = data
         self.current_param = param
+        self.stop_graph()
         self.reset_graph()
 
         # SAVE THE ORIGINAL CALLBACK
@@ -216,63 +233,83 @@ class GraphBlock(QFrame):
         self.graph.getPlotItem().setLabel('left', param.label or param.name, units=param.unit)
         self.graph.getPlotItem().setLabel('bottom', 'Time', units='s')
 
+        self.start_graph()
+
     def _record_value(self, value):
         if self.paused:
             return
-
-        t = time.time() - self.start_time
         try:
             val = float(value)
         except (ValueError, TypeError) as e:
             print(e)
             return
 
-        self.data_x.append(t)
-        self.data_y.append(val)
+        idx = self._buf_head % self._buf_size
+        self._buf_x[idx] = time.time() - self.start_time
+        self._buf_y[idx] = val
+        self._buf_head += 1
+        self._buf_count = min(self._buf_count + 1, self._buf_size)
+
         self.latest_value = val
-        self.needs_redraw = True # New data is available for render cycle
+        self.needs_redraw = True
 
     def _update_plot(self):
-        if self.needs_redraw and not self.paused:
-            self.lbl_current_value.setText(f"Value: {self.latest_value:.6f}")
-            try:
-                self.graph.line_curve.setData(list(self.data_x), list(self.data_y))
-                self.needs_redraw = False
-                self._cleanup_data()
-            except RuntimeError:
-                pass
-
-
-    def _cleanup_data(self):
-        if not self.data_x:
+        if not self.needs_redraw:
             return
+        self.lbl_current_value.setText(f"Value: {self.latest_value:.6f}")
+        try:
+            x, y = self._visible_arrays()
+            self.graph.line_curve.setData(x, y)
+            self.needs_redraw = False
+        except RuntimeError:
+            pass
 
-        current_t = time.time() - self.start_time
-        limit_t = current_t - self.max_window_seconds
+    def _visible_arrays(self):
+        """
+        Single pass: trims the ring buffer to the current time window
+        (advancing the logical tail) and returns chronological numpy
+        views ready for pyqtgraph. No extra copies.
+        """
+        if self._buf_count == 0:
+            return np.empty(0), np.empty(0)
 
-        while self.data_x and self.data_x[0] < limit_t:
-            self.data_x.popleft()
-            self.data_y.popleft()
+        indices = np.arange(self._buf_head - self._buf_count,
+                            self._buf_head) % self._buf_size
+        x_all = self._buf_x[indices]
+        y_all = self._buf_y[indices]
 
+        cutoff = x_all[-1] - self.max_window_seconds
+        n_drop = int(np.searchsorted(x_all, cutoff, side='right'))
+        self._buf_count = max(0, self._buf_count - n_drop)
+
+        return x_all[n_drop:], y_all[n_drop:]
+
+    def _adaptive_refresh_ms(self) -> int:
+        if self.max_window_seconds is None: return 100
+        s = max(6.0, self.max_window_seconds)  # clamp below at 0.1 min
+        ms = math.exp(_LOG_MS_MIN + _SLOPE * (math.log(s) - _LOG_S_MIN))
+        return int(max(16, min(ms, 1000)))
 
     def start_graph(self):
         self.paused = False
+        self.render_timer.start(self._adaptive_refresh_ms())
         print("Graph Resumed")
 
     def stop_graph(self):
         self.paused = True
+        self.render_timer.stop()
         print("Graph Paused")
 
     def reset_graph(self):
-        self.data_x.clear()
-        self.data_y.clear()
+        self._buf_head  = 0
+        self._buf_count = 0
         self.graph.line_curve.setData([], [])
         self.graph.dot_curve.setData([], [])
         print("Graph Reset")
 
     def delete_block(self):
+        self.render_timer.stop()
         self._unhook_current_param()
-
         if self.parent_widget:
             self.parent_widget.remove_graph_block(self)
 
