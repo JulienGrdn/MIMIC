@@ -14,7 +14,7 @@ from src.gui.widgets.popups import Popups
 
 
 ASSETS_DIR   = os.path.join(os.getcwd(), "src", "gui", "assets")
-MASTER_TOPIC = "MIMICsoftware/Master/{hostname}"
+MASTER_TOPIC = "MIMICsoftware/Master"
 _CLAIM_DELAY_MS = 500
 
 
@@ -78,6 +78,7 @@ class AboutTab(QWidget):
 
         self._client_id    = uuid.uuid4().hex[:10]
         self._hostname     = socket.gethostname()
+        self._prompt       = f"{self._hostname}@{self._client_id}"
         self._master_topic = MASTER_TOPIC.format(hostname=self._hostname)
 
         self._claim_timer = QTimer(self)
@@ -303,7 +304,7 @@ class AboutTab(QWidget):
         try:
             self._mqtt.client.publish(
                 self._master_topic,
-                self._client_id,
+                self._prompt,
                 qos=1,
                 retain=True
             )
@@ -327,7 +328,7 @@ class AboutTab(QWidget):
         if topic != self._master_topic:
             return
         self._claim_timer.stop()
-        if payload == self._client_id:
+        if payload == self._prompt:
             self._apply_state(STATE_MASTER)
         elif payload == "":
             pass

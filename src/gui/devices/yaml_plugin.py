@@ -26,6 +26,7 @@ class GenericYamlDevice(InstrumentBase):
         self.config = device_config
         self.category = device_config.get('device_cat', 'Uncategorized')
         self.mqtt_base = device_config.get('mqtt_base_topic', '')
+        self.special = device_config.get('special_device', None)
         self.driver = None
         self.nickname = device_config.get('nickname', None)
         self.id = device_config.get('id', None)
@@ -69,21 +70,21 @@ class GenericYamlDevice(InstrumentBase):
         unit = chan_config.get('unit', '')
         access = chan_config.get('access', 'read_write')
         payload_format = chan_config.get('mqtt_payload_format', None)
+        special = chan_config.get('special_channel', None)
 
-        internal_type = 'str'
+        internal_ptype = 'str'
         if p_type == 'integer':
-            internal_type = 'int'
+            internal_ptype = 'int'
         elif p_type == 'float':
-            internal_type = 'float'
+            internal_ptype = 'float'
         elif p_type == 'boolean':
-            internal_type = 'bool'
+            internal_ptype = 'bool'
 
-        setter = None
+        setter, ui_type = None, False
         cmd_suffix = chan_config.get('command_suffix')
-        ui_type = internal_type
         if access == 'read':
             ui_type = 'input'
-        if 'WM' in self.mqtt_base:
+        if self.special == "wavemeter":
             ui_type = 'wm_freq'
         if access in ['read_write', 'write'] and cmd_suffix:
             setter = partial(self.set_value_wrapper, cmd_suffix)
@@ -91,7 +92,7 @@ class GenericYamlDevice(InstrumentBase):
         param = Parameter(
             name=key,
             label=label,
-            param_type=ui_type,
+            param_type=internal_ptype,
             unit=unit,
             set_cmd=setter,
             get_cmd=None,
@@ -106,6 +107,10 @@ class GenericYamlDevice(InstrumentBase):
             param._command_suffix = command_suffix
         if access:
             param._access = access
+        if ui_type:
+            param.ui_type = ui_type
+        if special:
+            param.special_channel = special
 
         self.add_parameter(param)
 
@@ -132,7 +137,7 @@ class GenericYamlDevice(InstrumentBase):
             param = self._command_map.get(suffix)
 
             if param:
-                if 'SET/frequency' in suffix:
+                if param.ui_type == 'wm_freq':
                     self.setpoint = value
                     if hasattr(param, 'notify_readout_rich_freq'):
                         param.notify_readout_rich_freq(param.update_current_value(), stable=False)
@@ -149,7 +154,7 @@ class GenericYamlDevice(InstrumentBase):
         if param.payload_format:
             payload = param.format_payload(payload)
 
-        if param.param_type == 'wm_freq':
+        if param.ui_type == 'wm_freq':
             try:
                 val = float(payload)
             except ValueError:
@@ -173,7 +178,7 @@ class GenericYamlDevice(InstrumentBase):
             self.wm_stds[param.name] = std
 
             # Determine Stability Criteria
-            threshold_thz = 0.00005
+            threshold_thz = 0.5
             filtered_sum = 0.0
             filtered_count = 0
 

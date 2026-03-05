@@ -225,7 +225,7 @@ class ScanWorker(QThread):
                         break
 
                 for axis in axes:
-                    if axis['param'].param_type == 'wm_freq':
+                    if axis['param'].ui_type == 'wm_freq' or axis['param'].special_channel == 'stability':
                         self.status_update.emit(
                             f"Waiting for stability: {axis['param'].name}")
                         self._wait_for_stability(axis['param'])

@@ -20,6 +20,7 @@ from src.gui.assets.csstyle import Style
 from src.gui.assets.theme_manager import ThemeManager
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.widgets.smaller_toggle import AnimatedToggle
+from src.gui.widgets.bool_status_toggle import AnimatedStatusDisplay
 from src.gui.widgets.flow_layout import FlowLayout
 from src.gui.assets.instance_state import InstanceState
 from src.gui.widgets.popups import Popups
@@ -65,23 +66,31 @@ class InstrumentFrame(QFrame):
 
     def _add_parameter_row(self, param: Parameter):
         """Builds the UI row(s) for one parameter."""
-        if param.param_type == 'input':
+        if param.ui_type == 'input':
             if param.label is not None:
                 title_lbl = QLabel(f"{param.label}")
                 title_lbl.setObjectName(f"title_{id(param)}")
                 self.styled_widgets.append((title_lbl, "Label.channel_title"))
                 self.layout.addWidget(title_lbl)
 
-            value_lbl = QLabel("—")
-            style_key = "Label.parameter"
-            self.styled_widgets.append((value_lbl, style_key))
 
-            if hasattr(param, 'update_readout'):
-                param.update_readout = value_lbl.setText
-            if hasattr(param, 'update_readout_style'):
-                param.update_readout_style = value_lbl.setStyleSheet
-            if hasattr(param, 'update_readout_rich'):
-                param.update_readout_rich = value_lbl.setText
+            if param.param_type == 'bool':
+                value_widget = AnimatedStatusDisplay()
+                param.update_widget = value_widget.set_status
+                param.update_readout = value_widget.set_status
+            else:
+                value_widget = QLabel("—")
+                if hasattr(param, 'update_readout'):
+                    param.update_readout = value_widget.setText
+                if hasattr(param, 'update_readout_style'):
+                    param.update_readout_style = value_widget.setStyleSheet
+                if hasattr(param, 'update_readout_rich'):
+                    param.update_readout_rich = value_widget.setText
+
+            style_key = "Label.parameter"
+            self.styled_widgets.append((value_widget, style_key))
+
+
 
             rate_lbl = QLabel("")
             rate_lbl.setObjectName(f"rate_{id(param)}")
@@ -89,7 +98,7 @@ class InstrumentFrame(QFrame):
             self._rate_labels.append((param, rate_lbl))
 
             value_row = QHBoxLayout()
-            value_row.addWidget(value_lbl)
+            value_row.addWidget(value_widget)
             value_row.addStretch()
             value_row.addWidget(rate_lbl)
             self.layout.addLayout(value_row)
@@ -111,7 +120,7 @@ class InstrumentFrame(QFrame):
 
         if param.param_type != "bool" and "read" in param._access:
             readout_label = QLabel("--")
-            style_key = "Label.frequency_big" if param.param_type == 'wm_freq' else "Label.parameter"
+            style_key = "Label.frequency_big" if param.ui_type == 'wm_freq' else "Label.parameter"
             self.styled_widgets.append((readout_label, style_key))
 
             if hasattr(param, 'update_readout'):
@@ -144,7 +153,7 @@ class InstrumentFrame(QFrame):
 
             return widget
 
-        elif param.param_type in ["float", "int", "str", 'wm_freq']:
+        elif param.param_type in ["float", "int", "str"] or param.ui_type == 'wm_freq':
             widget = QLineEdit()
             widget.setObjectName(f"inst_{self.instrument.id}_{param.name}")
             self.styled_widgets.append((widget, "Input.line_edit"))
@@ -154,7 +163,7 @@ class InstrumentFrame(QFrame):
                 param.update_widget = widget.setText
             return widget
 
-        elif param.param_type == 'input':
+        elif param.ui_type == 'input':
             widget = QLabel("_")
             self.styled_widgets.append((widget, "Label.parameter"))
             parent_layout.addWidget(widget)

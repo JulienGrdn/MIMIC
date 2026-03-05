@@ -81,6 +81,28 @@ devices:
         status_suffix: "signal"
 
 
+  - id: "redpitaya_fpi"
+    name: "Laser Locking System"
+    nickname: "LLS"
+    device_cat: "Sensor"
+    mqtt_base_topic: "LLS/serial_number"
+
+    channels:
+      - key: "locksetpoint"
+        label: "Lock Setpoint"
+        type: "float"
+        access: "write"
+        special_channel: {"stability": "stab_chnl_locksetpoint"}
+        unit: "THz"
+        command_suffix: "SET/frequency/1"
+
+      - key: "stab_chnl_locksetpoint"
+        label: "Stable"
+        type: "boolean"
+        access: "read"
+        status_suffix: "stab"
+
+
   - id: "dummy_shutter"
     name: "Dummy Shutter"
     nickname: "DShutter"
@@ -106,6 +128,7 @@ devices:
     name: "Dummy Wavemeter"
     nickname: "DWM"
     device_cat: "Sensor"
+    special_device: "wavemeter"
     mqtt_base_topic: "DWM/serial_number"
 
     channels:

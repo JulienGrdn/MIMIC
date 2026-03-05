@@ -15,9 +15,11 @@ class Parameter:
     unit: str = ""
     nickname: str = ""
     _access: str = ""
+    ui_type: str = None
     payload_format: Optional[Iterable[tuple]] = None
     payload_type: Optional[str] = None
     payload_value_location: Optional = None
+    special_channel: Optional[str] = None
 
     update_widgets: list[Callable[[Any], None]] = None
     update_widget_styles: list[Callable[[str], None]] = None
@@ -29,11 +31,13 @@ class Parameter:
     stable: bool = False
 
     update_rate_ms: float = 0.0
-    _rate_ts: deque = field(default_factory=lambda: deque(maxlen=10), repr=False, compare=False)
+    _rate_ts: deque = field(default_factory=lambda: deque(maxlen=5), repr=False, compare=False)
 
     def __post_init__(self):
         if self.payload_format:
             self.payload_type, self.payload_value_location = ast.literal_eval(self.payload_format)
+        if self.special_channel:
+            self.coupling_type, self.coupled_channel = ast.literal_eval(self.special_channel)
 
     @property
     def update_widget(self):
