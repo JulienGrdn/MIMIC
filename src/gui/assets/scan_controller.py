@@ -4,6 +4,7 @@ import time
 import datetime
 import itertools
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QMutexLocker
+from src.gui.assets.stability_monitor import StabilityMonitor
 
 
 class DataLogger:
@@ -63,11 +64,14 @@ class ScanWorker(QThread):
         self._paused  = False
 
         self.logger: DataLogger | None = None
+        self._monitor: StabilityMonitor | None = None
 
     def stop(self):
         with QMutexLocker(self._mutex):
             self._running = False
             self._paused  = False
+        if self._monitor:
+            self._monitor.stop()
 
     def pause(self):
         with QMutexLocker(self._mutex):
@@ -101,17 +105,21 @@ class ScanWorker(QThread):
                     return
             self.msleep(100)
 
-    def _wait_for_stability(self, param):
-        self._interruptible_sleep(1.2)
-        timeout   = 60.0
-        start_t   = time.time()
-        while time.time() - start_t < timeout:
+    def _wait_until_stable(self, timeout: float = 60.0):
+        if not self._monitor:
+            return
+
+        self._monitor.reset()
+        # Poll the event in short slices so abort/pause stay responsive
+        deadline = time.time() + timeout
+        while time.time() < deadline:
             if not self._is_running():
                 return
-            if param.stable:
-                return
-            self.msleep(100)
-        self.status_update.emit(f"Timeout waiting for stability: {param.name}")
+            self._wait_while_paused()
+            if self._monitor.wait_until_stable(timeout=0.1):
+                return   # all stable + hold satisfied
+
+        self.status_update.emit("Timeout waiting for stability.")
 
     def _build_axis_values(self, axis: dict, repeats: int) -> list:
         start = float(axis['start'])
@@ -201,6 +209,22 @@ class ScanWorker(QThread):
             self.logger.init_log(headers, full_comment)
             self.status_update.emit(f"Saving to {self.logger.filename}")
 
+            wait_conditions = self.config.get('wait_conditions', {})
+            watched_params  = []
+            if wait_conditions:
+                for inst in self.instruments:
+                    for param in inst.parameters.values():
+                        param_id = f"{inst.name}_{param.name}"
+                        if wait_conditions.get(param_id, False):
+                            watched_params.append(param)
+
+            if watched_params:
+                self._monitor = StabilityMonitor(watched_params)
+                self._monitor.stability_changed.connect(self._on_stability_changed)
+                self._monitor.start()
+                self.status_update.emit(
+                    f"Monitoring stability of: {', '.join(p.name for p in watched_params)}")
+
             for idx, point in enumerate(scan_points):
                 if not self._is_running():
                     break
@@ -219,21 +243,15 @@ class ScanWorker(QThread):
                             current_setpoints[f"{inst.name}_{param.name}"] = val
                             break
 
+                if self._monitor:
+                    self._wait_until_stable()
+                    if not self._is_running():
+                        break
+
                 if delay > 0:
                     self._interruptible_sleep(delay)
                     if not self._is_running():
                         break
-
-                for axis in axes:
-                    if axis['param'].ui_type == 'wm_freq' or axis['param'].special_channel == 'stability':
-                        self.status_update.emit(
-                            f"Waiting for stability: {axis['param'].name}")
-                        self._wait_for_stability(axis['param'])
-                        if not self._is_running():
-                            break
-
-                if not self._is_running():
-                    break
 
                 row = self._snapshot(current_setpoints)
                 self.logger.log(row)
@@ -247,6 +265,17 @@ class ScanWorker(QThread):
             print(f"[ScanWorker] Error: {e}")
 
         finally:
+            if self._monitor:
+                self._monitor.stop()
+                self._monitor.wait()
+                self._monitor = None
             if self.logger:
                 self.logger.close()
             self.scan_finished.emit()
+
+    def _on_stability_changed(self, all_stable: bool, unstable_names: list):
+        if all_stable:
+            self.status_update.emit("All channels stable — proceeding.")
+        else:
+            names = ", ".join(unstable_names)
+            self.status_update.emit(f"Waiting for stability: {names}")

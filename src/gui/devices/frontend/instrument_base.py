@@ -147,9 +147,13 @@ class Parameter:
 
     def notify_readout_rich_parameter(self, value):
         full_str = f"{float(value):.4f}" if self.param_type == 'float' else value
+        color_style = "color: #2ecc71;" if self.stable else ""
+
         text = (
             f"<html>"
+            f"<span style='{color_style}'>"
             f"{full_str}"
+            f"</span>"
             f" <span style='font-size: 13pt; color: #B9BBBE; font-weight: normal;'>{self.unit}</span>"
             f"</html>"
         )

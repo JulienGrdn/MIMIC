@@ -91,16 +91,17 @@ devices:
       - key: "locksetpoint"
         label: "Lock Setpoint"
         type: "float"
-        access: "write"
-        special_channel: {"stability": "stab_chnl_locksetpoint"}
+        access: "write"          # pure write, no special_channel needed here
         unit: "THz"
         command_suffix: "SET/frequency/1"
 
       - key: "stab_chnl_locksetpoint"
-        label: "Stable"
+        label: "Locked"
         type: "boolean"
         access: "read"
-        status_suffix: "stab"
+        ui_type: "stability"     # ← tells the system this IS a stability param
+        status_suffix: "stab"    # subscribes to LLS/serial_number/stab
+        scan_required: true      # ← scan worker waits for this before each point
 
 
   - id: "dummy_shutter"
@@ -124,6 +125,24 @@ devices:
         access: "write"
         command_suffix: "SET/pulse"
 
+
+
+  - id: "my_device"
+    name: "My Laser System"
+    nickname: "MLS"
+    device_cat: "Sensor"
+    mqtt_base_topic: "MLS/serial_number"
+
+    channels:
+      - key: "locksetpoint"
+        label: "Lock Setpoint"
+        type: "boolean"
+        access: "write"
+        special_channel: {"dict": "stab_chnl_locksetpoint"}
+        unit: "THz"
+        command_suffix: "SET/frequency/1"
+
+
   - id: "dummy_wavemeter"
     name: "Dummy Wavemeter"
     nickname: "DWM"
@@ -140,6 +159,9 @@ devices:
         status_suffix: "frequency/1"
         command_suffix: "SET/frequency/1"
 
+      - key: "sep1"
+        type: "ui_sep"
+
       - key: "chnl2"
         label: "Channel 2"
         type: "float"
@@ -147,6 +169,17 @@ devices:
         unit: "THz"
         status_suffix: "frequency/2"
         command_suffix: "SET/frequency/2"
+
+
+      - key: 'wl_stable_chnl2'
+        label: "Lock"
+        type: 'boolean'
+        access: 'read'
+        status_suffix: "wl2/stable"
+        special_channel: "('stability', 'chnl2')"
+
+      - key: "sep2"
+        type: "ui_sep"
 
       - key: "chnl3"
         label: "Channel 3"
@@ -156,6 +189,9 @@ devices:
         status_suffix: "frequency/3"
         command_suffix: "SET/frequency/3"
 
+      - key: "sep3"
+        type: "ui_sep"
+
       - key: "chnl4"
         label: "Channel 4"
         type: "float"
@@ -163,3 +199,37 @@ devices:
         unit: "THz"
         status_suffix: "frequency/4"
         command_suffix: "SET/frequency/4"
+
+
+
+
+
+  - id: 'my_laser'
+    name: "My Laser"
+    nickname: "Laser"
+    device_cat: "Lasers"
+    mqtt_base_topic: "lab/laser1"
+
+    channels:
+      - key: 'frequency'
+        label: "Frequency"
+        type: 'float'
+        unit: "THz"
+        access: 'read'
+        status_suffix: "freq/status"
+
+
+      - key: 'wl_stable'
+        label: "Lock"
+        type: 'boolean'
+        access: 'read'
+        status_suffix: "wl/stable"
+        special_channel: "('stability', 'frequency')"
+
+
+      - key: 'wl_stable_self'
+        label: "Self Lock"
+        type: 'boolean'
+        access: 'read'
+        status_suffix: "wl/selfstable"
+        special_channel: "('stability', 'self')"

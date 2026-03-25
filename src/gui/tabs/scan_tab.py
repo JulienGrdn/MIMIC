@@ -4,7 +4,7 @@ from collections import defaultdict
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTextEdit, QFrame, QGridLayout, QGroupBox,
-    QScrollArea, QComboBox
+    QScrollArea, QComboBox, QDialog
 )
 from src.gui.widgets.qtgraph import Graph
 from src.gui.assets.csstyle import Style
@@ -12,6 +12,7 @@ from src.gui.assets.theme_manager import ThemeManager
 from src.gui.assets.scan_controller import ScanWorker
 from src.gui.assets.icon_utils import CustomIcon
 from src.gui.widgets.noscrollcombobox import NSCB
+from src.gui.widgets.smaller_toggle import AnimatedToggle
 
 
 SCAN_CONFIG_FILE = os.path.join(os.getcwd(), 'config', 'scan_axes.json')
@@ -30,6 +31,8 @@ class ScanTab(QWidget):
         self._scan_params: list[tuple] = []
         self._scan_params_long: list[tuple] = []# writable params → axis combos
         self._all_params:  list[tuple] = []   # all readable params → y-axis combo
+
+        self.wait_conditions = {} # { param_id (str): should_wait (bool) }
 
         self._init_ui()
         self.populate_params()
@@ -90,6 +93,11 @@ class ScanTab(QWidget):
         self.inp_repeats.setFixedWidth(60)
         repeat_row.addWidget(self.inp_repeats)
         settings_layout.addLayout(repeat_row)
+
+        self.btn_wait_conditions = QPushButton("Wait Conditions")
+        self.btn_wait_conditions.setStyleSheet(Style.Button.suggested)
+        self.btn_wait_conditions.clicked.connect(self._open_wait_conditions_dialog)
+        settings_layout.addWidget(self.btn_wait_conditions)
 
         settings_layout.addWidget(QLabel("Comments:"))
         self.txt_comments = QTextEdit()
@@ -259,6 +267,99 @@ class ScanTab(QWidget):
         self._apply_theme_to_axis_row(*entry)
         return entry
 
+    def _open_wait_conditions_dialog(self):
+        is_dark = ThemeManager.get_theme() == "dark"
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Wait Conditions")
+        dialog.setMinimumWidth(400)
+        dialog.setMinimumHeight(300)
+
+        main_layout = QVBoxLayout(dialog)
+        main_layout.setSpacing(5)
+
+        device_groups = {}
+
+        for inst in self.loaded_instruments:
+            params_for_this_inst = []
+            processed_param_names = set()
+
+            linked_stability_channels = {
+                param.coupled_channel for param in inst.parameters.values()
+                if hasattr(param, 'coupled_channel') and
+                   getattr(param, 'coupling_type', None) == 'stability'
+            }
+
+            for param in inst.parameters.values():
+                is_stability_base = (hasattr(param, 'special_channel') and
+                                     getattr(param, 'coupling_type', None) == 'stability')
+
+                is_independent_indicator = (param.ui_type == 'stability_indicator' and
+                                            param.name not in linked_stability_channels)
+
+                if (is_stability_base or is_independent_indicator) and param.name not in processed_param_names:
+                    params_for_this_inst.append(param)
+                    processed_param_names.add(param.name)
+
+            if params_for_this_inst:
+                device_groups[inst] = params_for_this_inst
+
+        if not device_groups:
+            main_layout.addWidget(QLabel("No stability channels configured."))
+        else:
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.NoFrame)
+
+            container = QWidget()
+            container_layout = QVBoxLayout(container)
+            container_layout.setContentsMargins(1, 1, 1, 1)
+            container_layout.setSpacing(5)
+
+            for inst, params in device_groups.items():
+                card = QFrame()
+                card.setStyleSheet(Style.Frame.container_dark if is_dark else Style.Frame.container_light)
+
+                card_layout = QVBoxLayout(card)
+                card_layout.setSpacing(1)
+
+                title = QLabel(inst.name.upper())
+                title.setObjectName("DeviceTitle")
+                title.setStyleSheet(Style.Label.title_dark if is_dark else Style.Label.title_light)
+                card_layout.addWidget(title)
+
+                for param in params:
+                    row_layout = QHBoxLayout()
+                    param_id = f"{inst.name}_{param.name}"
+                    lbl = QLabel(f"Wait for {param.label} stability:")
+                    # lbl.setStyleSheet("border: none;")
+
+                    toggle = AnimatedToggle()
+                    toggle.setChecked(self.wait_conditions.get(param_id, False))
+
+                    def make_handler(pid):
+                        return lambda checked: (self.wait_conditions.update({pid: checked}), self._save_scan_axes())
+
+                    toggle.toggled.connect(make_handler(param_id))
+
+                    row_layout.addWidget(lbl)
+                    row_layout.addStretch()
+                    row_layout.addWidget(toggle)
+                    card_layout.addLayout(row_layout)
+
+                container_layout.addWidget(card)
+
+            container_layout.addStretch()
+            scroll.setWidget(container)
+            main_layout.addWidget(scroll)
+
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        main_layout.addWidget(close_btn)
+
+        dialog.setStyleSheet(Style.Default.dark if is_dark else Style.Default.light)
+
+        dialog.exec()
+
     def remove_axis_row(self, frame):
         self.axis_widgets = [r for r in self.axis_widgets if r[4] is not frame]
         frame.deleteLater()
@@ -277,10 +378,16 @@ class ScanTab(QWidget):
             }
             for combo, start, stop, steps, _ in self.axis_widgets
         ]
+
+        config_data = {
+            'axes': axes_data,
+            'wait_conditions': self.wait_conditions
+        }
+
         try:
             os.makedirs(os.path.dirname(SCAN_CONFIG_FILE), exist_ok=True)
             with open(SCAN_CONFIG_FILE, 'w') as f:
-                json.dump(axes_data, f, indent=4)
+                json.dump(config_data, f, indent=4)
         except Exception as e:
             print(f"[ScanTab] Error saving scan axes: {e}")
 
@@ -292,11 +399,19 @@ class ScanTab(QWidget):
                 return
 
             with open(SCAN_CONFIG_FILE, 'r') as f:
-                axes_data = json.load(f)
+                data = json.load(f)
 
-            if not axes_data:
+            if not data:
                 self.add_axis_row()
                 return
+
+            if isinstance(data, list):
+                # Backwards compatibility
+                axes_data = data
+                self.wait_conditions = {}
+            else:
+                axes_data = data.get('axes', [])
+                self.wait_conditions = data.get('wait_conditions', {})
 
             for axis in axes_data:
                 combo, start, stop, steps, _ = self.add_axis_row()
@@ -346,7 +461,8 @@ class ScanTab(QWidget):
             'axes':     axes_config,
             'delay':    delay,
             'repeats':  repeats,
-            'comments': self.txt_comments.toPlainText()
+            'comments': self.txt_comments.toPlainText(),
+            'wait_conditions': self.wait_conditions
         }
 
         self.scan_data = defaultdict(list)

@@ -20,10 +20,11 @@ from src.gui.assets.csstyle import Style
 from src.gui.assets.theme_manager import ThemeManager
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.widgets.smaller_toggle import AnimatedToggle
-from src.gui.widgets.bool_status_toggle import AnimatedStatusDisplay
 from src.gui.widgets.flow_layout import FlowLayout
 from src.gui.assets.instance_state import InstanceState
 from src.gui.widgets.popups import Popups
+from src.gui.widgets.ui_line_separator import qframe_line_separator
+from src.gui.widgets.ui_passive_toggle import StabilityIndicator
 
 class InstrumentFrame(QFrame):
     """
@@ -42,9 +43,9 @@ class InstrumentFrame(QFrame):
         self.setFixedWidth(280)
 
         self._init_header()
-
         for param in self.instrument.get_all_params():
-            self._add_parameter_row(param)
+            if param.ui_type == 'ui_sep': self.layout.addWidget(qframe_line_separator())
+            else:self._add_parameter_row(param)
 
         self._rate_timer = QTimer(self)
         self._rate_timer.timeout.connect(self._refresh_rate_labels)
@@ -53,7 +54,6 @@ class InstrumentFrame(QFrame):
         self.apply_theme()
 
     def _init_header(self):
-        """Creates the bold title and horizontal divider line."""
         title = QLabel(self.instrument.name)
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.styled_widgets.append((title, "Label.title"))
@@ -66,6 +66,10 @@ class InstrumentFrame(QFrame):
 
     def _add_parameter_row(self, param: Parameter):
         """Builds the UI row(s) for one parameter."""
+
+        if param.ui_type == 'hidden':
+            return
+
         if param.ui_type == 'input':
             if param.label is not None:
                 title_lbl = QLabel(f"{param.label}")
@@ -73,11 +77,11 @@ class InstrumentFrame(QFrame):
                 self.styled_widgets.append((title_lbl, "Label.channel_title"))
                 self.layout.addWidget(title_lbl)
 
-
             if param.param_type == 'bool':
-                value_widget = AnimatedStatusDisplay()
-                param.update_widget = value_widget.set_status
-                param.update_readout = value_widget.set_status
+                value_widget = QLabel("—")
+                if hasattr(param, 'update_readout'):
+                    param.update_readout = lambda val: value_widget.setText("ON" if val else "OFF")
+                style_key = "Label.parameter"
             else:
                 value_widget = QLabel("—")
                 if hasattr(param, 'update_readout'):
@@ -86,11 +90,10 @@ class InstrumentFrame(QFrame):
                     param.update_readout_style = value_widget.setStyleSheet
                 if hasattr(param, 'update_readout_rich'):
                     param.update_readout_rich = value_widget.setText
+                style_key = "Label.parameter"
 
-            style_key = "Label.parameter"
-            self.styled_widgets.append((value_widget, style_key))
-
-
+            if style_key:
+                self.styled_widgets.append((value_widget, style_key))
 
             rate_lbl = QLabel("")
             rate_lbl.setObjectName(f"rate_{id(param)}")
@@ -109,11 +112,13 @@ class InstrumentFrame(QFrame):
             row_layout.addWidget(QLabel(f"{param.label}:"))
 
         input_widget = self._create_input_widget(param, row_layout)
-        if param.param_type != "bool":
+
+        if param.param_type != "bool" and param.ui_type != 'stability_indicator':
             btn = QPushButton("Send")
             btn.setStyleSheet(Style.Button.suggested)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(lambda: self.send_command(param, input_widget.text()))
+
+            btn.clicked.connect(lambda _, p=param, w=input_widget: self.send_command(p, w.text()))
             row_layout.addWidget(btn)
 
         self.layout.addLayout(row_layout)
@@ -143,14 +148,19 @@ class InstrumentFrame(QFrame):
             self.layout.addLayout(readout_row)
 
     def _create_input_widget(self, param: Parameter, parent_layout: QHBoxLayout):
-        """Helper to create the correct widget type."""
-        if param.param_type == "bool":
+        if param.ui_type == 'stability_indicator':
+            widget = StabilityIndicator()
+            parent_layout.addWidget(widget)
+            if hasattr(param, 'update_widget'):
+                param.update_widget = widget.set_state
+            return widget
+
+        elif param.param_type == "bool":
             widget = AnimatedToggle()
             widget.toggled.connect(lambda state: self.send_command(param, state))
             parent_layout.addWidget(widget)
             if hasattr(param, 'update_widget'):
                 param.update_widget = widget.set_state
-
             return widget
 
         elif param.param_type in ["float", "int", "str"] or param.ui_type == 'wm_freq':
@@ -271,6 +281,7 @@ class InstrumentPanel(QWidget):
         self.loaded_instruments = self._import_yaml_instruments()
         self.sidebar.clear()
         grouped = defaultdict(list)
+
         for inst in self.loaded_instruments:
             cat = getattr(inst, 'category', 'Uncategorized')
             grouped[cat].append(inst)

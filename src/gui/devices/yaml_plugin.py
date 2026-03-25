@@ -1,7 +1,5 @@
 import os
 import yaml
-import math
-from collections import deque
 from functools import partial
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
@@ -32,13 +30,9 @@ class GenericYamlDevice(InstrumentBase):
         self.id = device_config.get('id', None)
         self.setpoint = None
 
-        # Storage for Wavemeter stability analysis
-        self.wm_history = {}  # param.name -> deque of recent values
-        self.wm_stds = {}  # param.name -> last calculated std
-        self.wm_last_values = {}  # param.name -> last received value
-
         self._status_map = {}
         self._command_map = {}
+        self._stability_link_map = {} # Maps stability channel name -> base channel Parameter
 
         for channel in device_config.get('channels', []):
             self._add_yaml_channel(channel)
@@ -53,6 +47,7 @@ class GenericYamlDevice(InstrumentBase):
         """
         self._status_map.clear()
         self._command_map.clear()
+        self._stability_link_map.clear()
 
         for param in self.get_all_params():
             if hasattr(param, '_status_suffix') and param._status_suffix:
@@ -61,7 +56,26 @@ class GenericYamlDevice(InstrumentBase):
             if hasattr(param, '_command_suffix') and param._command_suffix:
                 self._command_map[param._command_suffix] = param
 
-        print(f"Mapped {len(self._status_map)} status and {len(self._command_map)} command topics for fast routing.")
+
+        for param in self.get_all_params():
+            if hasattr(param, 'special_channel') and param.special_channel:
+                if getattr(param, 'coupling_type', None) == 'stability':
+                    base_channel_name = getattr(param, 'coupled_channel', None)
+                    if not base_channel_name:
+                        continue
+
+                    if base_channel_name == 'self':
+                        # Self-referential: render a ⬤ dot, no base param to colour
+                        param.ui_type = 'stability_indicator'
+                    else:
+                        # Linked to a base param: hide this channel, colour base readout
+                        param.ui_type = 'hidden'
+                        for p in self.get_all_params():
+                            if p.name == base_channel_name:
+                                self._stability_link_map[param.name] = p
+                                break
+
+        print(f"Mapped {len(self._status_map)} status, {len(self._command_map)} command topics, and {len(self._stability_link_map)} stability links for fast routing.")
 
     def _add_yaml_channel(self, chan_config):
         key = chan_config.get('key')
@@ -111,8 +125,14 @@ class GenericYamlDevice(InstrumentBase):
             param.ui_type = ui_type
         if special:
             param.special_channel = special
+            try:
+                import ast as _ast
+                param.coupling_type, param.coupled_channel = _ast.literal_eval(special)
+            except Exception as e:
+                print(f"[{self.name}] Could not parse special_channel '{special}' for '{key}': {e}")
 
-        self.add_parameter(param)
+        if p_type == 'ui_sep':self.add_parameter(Parameter(name = param.name, ui_type = 'ui_sep', label = '', param_type = 'ui_sep'))
+        else: self.add_parameter(param)
 
     def connect_instrument(self):
         if not self.mqtt_base:
@@ -140,8 +160,7 @@ class GenericYamlDevice(InstrumentBase):
                 if param.ui_type == 'wm_freq':
                     self.setpoint = value
                     if hasattr(param, 'notify_readout_rich_freq'):
-                        param.notify_readout_rich_freq(param.update_current_value(), stable=False)
-                        self.wm_history[param.name] = deque(maxlen=10)  # hardreset
+                        param.notify_readout_rich_freq(param.update_current_value(), stable=param.stable)
 
             self.driver.publish_param(suffix, value)
 
@@ -154,62 +173,43 @@ class GenericYamlDevice(InstrumentBase):
         if param.payload_format:
             payload = param.format_payload(payload)
 
-        if param.ui_type == 'wm_freq':
+        # Parse boolean payload early — covers bool params AND stability indicators
+        if param.param_type == 'bool' or param.ui_type in ('stability_indicator', 'hidden'):
+            if isinstance(payload, str):
+                bool_payload = payload.lower() in ['true', 'on', '1']
+            else:
+                bool_payload = bool(payload)
+            payload = bool_payload
+
+        # If this is a linked stability channel, update the base param's .stable flag
+        if param.name in self._stability_link_map:
+            base_param = self._stability_link_map[param.name]
+            base_param.stable = bool(payload)
+            param.stable = bool(payload)  # keep hidden param in sync so scan waits can read it
+            if base_param.ui_type == 'wm_freq' and hasattr(base_param, 'notify_readout_rich_freq'):
+                base_param.notify_readout_rich_freq(base_param.current_value, stable=base_param.stable)
+            elif hasattr(base_param, 'notify_readout_rich_parameter'):
+                base_param.notify_readout_rich_parameter(base_param.current_value)
+            return  # nothing to render for a hidden stability channel
+
+        if param.ui_type == 'stability_indicator':
+            if hasattr(param, 'notify_widget'):
+                param.notify_widget(payload)
+
+        elif param.ui_type == 'wm_freq':
             try:
                 val = float(payload)
             except ValueError:
                 val = 0.0
-
-            if param.name not in self.wm_history:
-                self.wm_history[param.name] = deque(maxlen=10)
-
-            history = self.wm_history[param.name]
-            history.append(val)
-            self.wm_last_values[param.name] = val
-
-            hist_len = len(history)
-            if hist_len > 1:
-                avg = sum(history) / hist_len
-                variance = sum((x - avg) ** 2 for x in history) / hist_len
-                std = math.sqrt(variance)
-            else:
-                std = 1.0  # Default high std if insufficient data
-
-            self.wm_stds[param.name] = std
-
-            # Determine Stability Criteria
-            threshold_thz = 0.5
-            filtered_sum = 0.0
-            filtered_count = 0
-
-            for s in self.wm_stds.values():
-                if s < threshold_thz:
-                    filtered_sum += s
-                    filtered_count += 1
-
-            averaged_std = (filtered_sum / filtered_count) if filtered_count > 0 else 0.0
-            p_std = self.wm_stds.get(param.name, 1.0)
-
-            margin = averaged_std * 2
-            if self.setpoint is not None:
-                lower_bound = val - margin
-                upper_bound = val + margin
-                is_stable = (p_std < margin) and (lower_bound <= val <= upper_bound)
-            else:
-                is_stable = p_std < margin
-
-            param.stable = is_stable
-
             if hasattr(param, 'notify_readout_rich_freq'):
-                param.notify_readout_rich_freq(val, stable=is_stable)
+                param.notify_readout_rich_freq(val, stable=param.stable)
 
         elif param.param_type == 'bool':
             if hasattr(param, 'notify_widget'):
                 param.notify_widget(payload)
 
-        # If param is read_write, update READOUT label
         else:
-            if hasattr(param, 'notify_readout'):
+            if hasattr(param, 'notify_readout_rich_parameter'):
                 param.notify_readout_rich_parameter(payload)
 
 
