@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Any, Optional, Iterable
 from PyQt6.QtCore import QObject
 import ast
+import json
 
 @dataclass
 class Parameter:
@@ -168,10 +169,31 @@ class Parameter:
     def format_payload(self, payload):
         if self.payload_type in ('list', 'dict'):
             try:
-                parsed_payload = ast.literal_eval(payload)
-                return parsed_payload[self.payload_value_location]
-            except (ValueError, SyntaxError, KeyError, TypeError) as e:
-                print(f"Payload parsing error: {e}. Raw payload: {payload}")
+                try:
+                    parsed_payload = json.loads(payload)
+                except json.JSONDecodeError:
+                    parsed_payload = ast.literal_eval(payload)
+
+                if self.payload_type == 'dict' and isinstance(parsed_payload, dict):
+                    extracted_value = parsed_payload.get(self.payload_value_location)
+                    if extracted_value is None:
+                        print(f"[{self.name}] Warning: Key '{self.payload_value_location}' not found in payload dict.")
+                        return payload  # Fallback or return None depending on your system's preference
+                    return extracted_value
+
+                elif self.payload_type == 'list' and isinstance(parsed_payload, list):
+                    idx = int(self.payload_value_location)
+                    if idx < len(parsed_payload):
+                        return parsed_payload[idx]
+                    else:
+                        print(f"[{self.name}] Warning: Index '{idx}' out of bounds for payload list.")
+                        return payload
+
+                else:
+                    return parsed_payload[self.payload_value_location]
+
+            except (ValueError, SyntaxError, TypeError, Exception) as e:
+                print(f"Payload parsing error for {self.name}: {e}. Raw payload: {payload}")
                 return payload
         else:
             return payload

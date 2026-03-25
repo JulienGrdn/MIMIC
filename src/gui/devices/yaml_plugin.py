@@ -51,11 +51,12 @@ class GenericYamlDevice(InstrumentBase):
 
         for param in self.get_all_params():
             if hasattr(param, '_status_suffix') and param._status_suffix:
-                self._status_map[param._status_suffix] = param
+                if param._status_suffix not in self._status_map:
+                    self._status_map[param._status_suffix] = []
+                self._status_map[param._status_suffix].append(param)
 
             if hasattr(param, '_command_suffix') and param._command_suffix:
                 self._command_map[param._command_suffix] = param
-
 
         for param in self.get_all_params():
             if hasattr(param, 'special_channel') and param.special_channel:
@@ -65,17 +66,15 @@ class GenericYamlDevice(InstrumentBase):
                         continue
 
                     if base_channel_name == 'self':
-                        # Self-referential: render a ⬤ dot, no base param to colour
                         param.ui_type = 'stability_indicator'
                     else:
-                        # Linked to a base param: hide this channel, colour base readout
                         param.ui_type = 'hidden'
                         for p in self.get_all_params():
                             if p.name == base_channel_name:
                                 self._stability_link_map[param.name] = p
                                 break
 
-        print(f"Mapped {len(self._status_map)} status, {len(self._command_map)} command topics, and {len(self._stability_link_map)} stability links for fast routing.")
+        print(f"Mapped {len(self._status_map)} status topics (some shared), {len(self._command_map)} command topics, and {len(self._stability_link_map)} stability links for fast routing.")
 
     def _add_yaml_channel(self, chan_config):
         key = chan_config.get('key')
@@ -165,52 +164,53 @@ class GenericYamlDevice(InstrumentBase):
             self.driver.publish_param(suffix, value)
 
     def on_mqtt_message(self, suffix, payload):
-
-        param = self._status_map.get(suffix)
-        if not param:
+        params = self._status_map.get(suffix)
+        if not params:
             return
 
-        if param.payload_format:
-            payload = param.format_payload(payload)
+        for param in params:
+            param_payload = payload
+            if param.payload_format:
+                param_payload = param.format_payload(payload)
 
-        # Parse boolean payload early — covers bool params AND stability indicators
-        if param.param_type == 'bool' or param.ui_type in ('stability_indicator', 'hidden'):
-            if isinstance(payload, str):
-                bool_payload = payload.lower() in ['true', 'on', '1']
+            # Parse boolean payload early — covers bool params AND stability indicators
+            if param.param_type == 'bool' or param.ui_type in ('stability_indicator', 'hidden'):
+                if isinstance(param_payload, str):
+                    bool_payload = param_payload.lower() in ['true', 'on', '1']
+                else:
+                    bool_payload = bool(param_payload)
+                param_payload = bool_payload
+
+            # If this is a linked stability channel, update the base param's .stable flag
+            if param.name in self._stability_link_map:
+                base_param = self._stability_link_map[param.name]
+                base_param.stable = bool(param_payload)
+                param.stable = bool(param_payload)
+                if base_param.ui_type == 'wm_freq' and hasattr(base_param, 'notify_readout_rich_freq'):
+                    base_param.notify_readout_rich_freq(base_param.current_value, stable=base_param.stable)
+                elif hasattr(base_param, 'notify_readout_rich_parameter'):
+                    base_param.notify_readout_rich_parameter(base_param.current_value)
+                continue  # Use 'continue' instead of 'return' to process other shared channels
+
+            if param.ui_type == 'stability_indicator':
+                if hasattr(param, 'notify_widget'):
+                    param.notify_widget(param_payload)
+
+            elif param.ui_type == 'wm_freq':
+                try:
+                    val = float(param_payload)
+                except (ValueError, TypeError):
+                    val = 0.0
+                if hasattr(param, 'notify_readout_rich_freq'):
+                    param.notify_readout_rich_freq(val, stable=param.stable)
+
+            elif param.param_type == 'bool':
+                if hasattr(param, 'notify_widget'):
+                    param.notify_widget(param_payload)
+
             else:
-                bool_payload = bool(payload)
-            payload = bool_payload
-
-        # If this is a linked stability channel, update the base param's .stable flag
-        if param.name in self._stability_link_map:
-            base_param = self._stability_link_map[param.name]
-            base_param.stable = bool(payload)
-            param.stable = bool(payload)  # keep hidden param in sync so scan waits can read it
-            if base_param.ui_type == 'wm_freq' and hasattr(base_param, 'notify_readout_rich_freq'):
-                base_param.notify_readout_rich_freq(base_param.current_value, stable=base_param.stable)
-            elif hasattr(base_param, 'notify_readout_rich_parameter'):
-                base_param.notify_readout_rich_parameter(base_param.current_value)
-            return  # nothing to render for a hidden stability channel
-
-        if param.ui_type == 'stability_indicator':
-            if hasattr(param, 'notify_widget'):
-                param.notify_widget(payload)
-
-        elif param.ui_type == 'wm_freq':
-            try:
-                val = float(payload)
-            except ValueError:
-                val = 0.0
-            if hasattr(param, 'notify_readout_rich_freq'):
-                param.notify_readout_rich_freq(val, stable=param.stable)
-
-        elif param.param_type == 'bool':
-            if hasattr(param, 'notify_widget'):
-                param.notify_widget(payload)
-
-        else:
-            if hasattr(param, 'notify_readout_rich_parameter'):
-                param.notify_readout_rich_parameter(payload)
+                if hasattr(param, 'notify_readout_rich_parameter'):
+                    param.notify_readout_rich_parameter(param_payload)
 
 
 config_data = load_yaml_config()

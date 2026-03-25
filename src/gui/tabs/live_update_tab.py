@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QLineEdit
 )
-from src.gui.assets.csstyle import Style
+from src.gui.assets.csstyle import Style, HTMLValueFormatter
 from src.gui.assets.theme_manager import ThemeManager
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.widgets.qtgraph import Graph
@@ -67,7 +67,7 @@ class GraphBlock(QFrame):
         layout = QHBoxLayout(self)
 
         controls_frame = QFrame()
-        controls_frame.setFixedWidth(170)
+        controls_frame.setFixedWidth(200)
         controls_layout = QVBoxLayout(controls_frame)
         controls_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -78,7 +78,7 @@ class GraphBlock(QFrame):
         self.combo.currentIndexChanged.connect(self._on_param_selected)
         controls_layout.addWidget(self.combo)
 
-        self.lbl_current_value = QLabel("Value: ---")
+        self.lbl_current_value = QLabel("-")
         controls_layout.addWidget(self.lbl_current_value)
 
         controls_layout.addSpacing(10)
@@ -228,6 +228,8 @@ class GraphBlock(QFrame):
         self.active_hook_param = param
         self.active_original_callback = original_callback
 
+        self.live_value_label_format = HTMLValueFormatter(sig_digits=12, unit=param.unit)
+
         # Update Plot Labels
         self.graph.getPlotItem().setTitle(f"{inst.name} - {param.label or param.name}")
         self.graph.getPlotItem().setLabel('left', param.label or param.name, units=param.unit)
@@ -256,7 +258,9 @@ class GraphBlock(QFrame):
     def _update_plot(self):
         if not self.needs_redraw:
             return
-        self.lbl_current_value.setText(f"Value: {self.latest_value:.6f}")
+
+        self.lbl_current_value.setText(self.live_value_label_format.get_html(self.latest_value))
+
         try:
             x, y = self._visible_arrays()
             self.graph.line_curve.setData(x, y)
@@ -327,13 +331,13 @@ class GraphBlock(QFrame):
         if is_dark:
             self.setStyleSheet(Style.Frame.container_dark)
             self.combo.setStyleSheet(Style.ComboBox.dark)
-            self.lbl_current_value.setStyleSheet(Style.Label.title_dark)
+            self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_dark)
             self.edit_window.setStyleSheet(Style.Input.line_edit_dark)
             self.btn_delete.setStyleSheet(Style.Button.simple_dark)
         else:
             self.setStyleSheet(Style.Frame.container_light)
             self.combo.setStyleSheet(Style.ComboBox.light)
-            self.lbl_current_value.setStyleSheet(Style.Label.title_light)
+            self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_light)
             self.edit_window.setStyleSheet(Style.Input.line_edit_light)
             self.btn_delete.setStyleSheet(Style.Button.simple_light)
 

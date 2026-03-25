@@ -34,6 +34,9 @@ devices:
         access: "read_write"
         status_suffix: "output/1"
         command_suffix: "SET/output/1"
+
+      - key: "sep1"
+        type: "ui_sep"
         
       - key: "voltage_ch2"
         label: "Voltage (Ch2)"
@@ -99,10 +102,8 @@ devices:
         label: "Locked"
         type: "boolean"
         access: "read"
-        ui_type: "stability"     # ← tells the system this IS a stability param
         status_suffix: "stab"    # subscribes to LLS/serial_number/stab
-        scan_required: true      # ← scan worker waits for this before each point
-
+        special_channel: "('stability', 'self')"
 
   - id: "dummy_shutter"
     name: "Dummy Shutter"
@@ -126,21 +127,6 @@ devices:
         command_suffix: "SET/pulse"
 
 
-
-  - id: "my_device"
-    name: "My Laser System"
-    nickname: "MLS"
-    device_cat: "Sensor"
-    mqtt_base_topic: "MLS/serial_number"
-
-    channels:
-      - key: "locksetpoint"
-        label: "Lock Setpoint"
-        type: "boolean"
-        access: "write"
-        special_channel: {"dict": "stab_chnl_locksetpoint"}
-        unit: "THz"
-        command_suffix: "SET/frequency/1"
 
 
   - id: "dummy_wavemeter"
@@ -166,6 +152,7 @@ devices:
         label: "Channel 2"
         type: "float"
         access: "read_write"
+        mqtt_payload_format: "('dict', 'freq')" # dictionnary, key -> into a tuple
         unit: "THz"
         status_suffix: "frequency/2"
         command_suffix: "SET/frequency/2"
@@ -175,7 +162,8 @@ devices:
         label: "Lock"
         type: 'boolean'
         access: 'read'
-        status_suffix: "wl2/stable"
+        mqtt_payload_format: "('dict', 'stable')" # dictionnary, key -> into a tuple
+        status_suffix: "frequency/2"
         special_channel: "('stability', 'chnl2')"
 
       - key: "sep2"
@@ -199,37 +187,3 @@ devices:
         unit: "THz"
         status_suffix: "frequency/4"
         command_suffix: "SET/frequency/4"
-
-
-
-
-
-  - id: 'my_laser'
-    name: "My Laser"
-    nickname: "Laser"
-    device_cat: "Lasers"
-    mqtt_base_topic: "lab/laser1"
-
-    channels:
-      - key: 'frequency'
-        label: "Frequency"
-        type: 'float'
-        unit: "THz"
-        access: 'read'
-        status_suffix: "freq/status"
-
-
-      - key: 'wl_stable'
-        label: "Lock"
-        type: 'boolean'
-        access: 'read'
-        status_suffix: "wl/stable"
-        special_channel: "('stability', 'frequency')"
-
-
-      - key: 'wl_stable_self'
-        label: "Self Lock"
-        type: 'boolean'
-        access: 'read'
-        status_suffix: "wl/selfstable"
-        special_channel: "('stability', 'self')"

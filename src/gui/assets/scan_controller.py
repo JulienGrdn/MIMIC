@@ -66,6 +66,8 @@ class ScanWorker(QThread):
         self.logger: DataLogger | None = None
         self._monitor: StabilityMonitor | None = None
 
+        self.scan_id = None
+
     def stop(self):
         with QMutexLocker(self._mutex):
             self._running = False
@@ -207,6 +209,7 @@ class ScanWorker(QThread):
 
             self.logger = DataLogger()
             self.logger.init_log(headers, full_comment)
+            self.scan_id = self.logger.filename.split("__")[-1].split(".")[0]
             self.status_update.emit(f"Saving to {self.logger.filename}")
 
             wait_conditions = self.config.get('wait_conditions', {})

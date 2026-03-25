@@ -24,6 +24,7 @@ class ScanTab(QWidget):
         self.loaded_instruments = loaded_instruments or []
         self.worker: ScanWorker | None = None
         self.scan_data: dict | None = None
+        self.scan_id: str | None = None
 
         self._loading_config = False
         self.axis_widgets: list[tuple] = []   # (combo, start, stop, steps, frame)
@@ -83,6 +84,7 @@ class ScanTab(QWidget):
         self.inp_delay = QLineEdit("0.5")
         self.inp_delay.setObjectName("scan_delay")
         self.inp_delay.setFixedWidth(60)
+        self.inp_delay.textChanged.connect(self._update_estimated_time)
         delay_row.addWidget(self.inp_delay)
         settings_layout.addLayout(delay_row)
 
@@ -91,6 +93,7 @@ class ScanTab(QWidget):
         self.inp_repeats = QLineEdit("1")
         self.inp_repeats.setObjectName("scan_repeats")
         self.inp_repeats.setFixedWidth(60)
+        self.inp_repeats.textChanged.connect(self._update_estimated_time)
         repeat_row.addWidget(self.inp_repeats)
         settings_layout.addLayout(repeat_row)
 
@@ -102,7 +105,7 @@ class ScanTab(QWidget):
         settings_layout.addWidget(QLabel("Comments:"))
         self.txt_comments = QTextEdit()
         self.txt_comments.setObjectName("scan_comments")
-        self.txt_comments.setFixedHeight(100)
+        self.txt_comments.setFixedHeight(70)
         settings_layout.addWidget(self.txt_comments)
         config_layout.addWidget(self.grp_settings)
 
@@ -179,6 +182,7 @@ class ScanTab(QWidget):
 
         for inst in self.loaded_instruments:
             for param in inst.get_all_params():
+                if param.ui_type == 'ui_sep': continue
                 key      = f"{inst.name}: {param.name}"
                 shortkey = f"{inst.nickname}: {param.name}"
                 self._all_params.append((key, param))
@@ -201,6 +205,7 @@ class ScanTab(QWidget):
 
         for combo, *_ in self.axis_widgets:
             self._fill_param_combo(combo)
+        self._update_estimated_time()
 
     def _fill_param_combo(self, combo: NSCB):
         combo.blockSignals(True)
@@ -263,6 +268,7 @@ class ScanTab(QWidget):
         start.editingFinished.connect(self._save_scan_axes)
         stop.editingFinished.connect(self._save_scan_axes)
         steps.editingFinished.connect(self._save_scan_axes)
+        steps.textChanged.connect(self._update_estimated_time)
 
         self._apply_theme_to_axis_row(*entry)
         return entry
@@ -337,7 +343,7 @@ class ScanTab(QWidget):
                     toggle.setChecked(self.wait_conditions.get(param_id, False))
 
                     def make_handler(pid):
-                        return lambda checked: (self.wait_conditions.update({pid: checked}), self._save_scan_axes())
+                        return lambda checked: (self.wait_conditions.update({pid: checked}), self._save_scan_axes(), self._update_estimated_time())
 
                     toggle.toggled.connect(make_handler(param_id))
 
@@ -364,6 +370,7 @@ class ScanTab(QWidget):
         self.axis_widgets = [r for r in self.axis_widgets if r[4] is not frame]
         frame.deleteLater()
         self._save_scan_axes()
+        self._update_estimated_time()
 
 
     def _save_scan_axes(self):
@@ -427,6 +434,7 @@ class ScanTab(QWidget):
                 self.add_axis_row()
         finally:
             self._loading_config = False
+            self._update_estimated_time()
 
 
     def _start_scan(self):
@@ -502,7 +510,39 @@ class ScanTab(QWidget):
         self.btn_abort.setEnabled(False)
         self.btn_pause.setChecked(False)
         self.btn_pause.setText("Pause")
-        self.lbl_status.setText("Scan Finished")
+        self._update_estimated_time()
+
+    def _update_estimated_time(self, *_):
+        try:
+            delay   = float(self.inp_delay.text())
+            repeats = int(self.inp_repeats.text())
+        except ValueError:
+            self.lbl_status.setText("Ready")
+            return
+
+        total_points = 1
+        for _, _start, _stop, steps_edit, _ in self.axis_widgets:
+            try:
+                n = max(1, int(steps_edit.text()))
+            except ValueError:
+                self.lbl_status.setText("Ready")
+                return
+            axis_len = n if n <= 1 else n + (repeats - 1) * (n - 1)
+            total_points *= axis_len
+
+        num_enabled  = sum(1 for v in self.wait_conditions.values() if v)
+        wait_overhead = (1.0 + 0.15 * num_enabled) if num_enabled > 0 else 0.0
+        estimated = total_points * (delay + wait_overhead) * 1.10
+
+        def fmt(s):
+            s = int(s)
+            if s < 60:   return f"{s}s"
+            if s < 3600: m, s2 = divmod(s, 60);  return f"{m}m {s2:02d}s"
+            h, r = divmod(s, 3600); m, s2 = divmod(r, 60); return f"{h}h {m:02d}m {s2:02d}s"
+
+        suffix = "s" if total_points != 1 else ""
+        pts = f"{total_points} pt{suffix}"
+        self.lbl_status.setText(f"Ready  |  {pts}  |  ~ {fmt(estimated)}")
 
     def _on_progress(self, current: int, total: int):
         self.lbl_status.setText(f"Scanning… {current}/{total}")

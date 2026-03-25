@@ -735,7 +735,25 @@ class Style:
                 padding: 4px;
             }}
         '''
-        
+
+        live_value_big_light = f'''
+            QLabel {{
+                font-size: 20px;
+                font-weight: 500; /* Light weight for large text */
+                color: {Palette.L_TEXT_MAIN};
+                padding: 5px;
+            }}
+        '''
+
+        live_value_big_dark = f'''
+            QLabel {{
+                font-size: 20px;
+                font-weight: 300; /* Light weight for large text */
+                color: {Palette.D_TEXT_MAIN};
+                padding: 5px;
+            }}
+        '''
+
         frequency_big = f'''
             QLabel {{
                 font-size: 26px;
@@ -1058,3 +1076,36 @@ class Style:
                 padding: 2px;
             }}
         """
+
+
+from typing import Union, Optional
+
+class HTMLValueFormatter:
+    Style = Palette
+    def __init__(self, sig_digits: int = 10,  unit: Optional[str] = None):
+        self.sig_digits = sig_digits
+        self.main_color = self.Style.L_TEXT_MAIN
+        self.unit_color = "#888888"
+        self.unit = unit
+
+    def set_theme(self, is_dark: bool):
+        if is_dark:
+            self.main_color = self.Style.D_TEXT_MAIN
+        else:
+            self.main_color = self.Style.L_TEXT_MAIN
+
+    def get_html(self, value: Union[int, float]) -> str:
+        if value is None:
+            return ""
+
+        if isinstance(value, int):
+            val_str = f"{value}"
+        else:
+            val_str = f"{value:.{self.sig_digits}g}"
+
+        html = f"<span style='font-size: 22px; font-weight: 500; color: {self.main_color};'>{val_str}</span>"
+
+        if self.unit:
+            html += f" <span style='font-size: 12px; font-weight: 300; color: {self.unit_color};'>{self.unit}</span>"
+
+        return html
