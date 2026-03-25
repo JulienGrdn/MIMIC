@@ -482,6 +482,7 @@ class ScanTab(QWidget):
         self.worker.status_update.connect(self.lbl_status.setText)
         self.worker.scan_finished.connect(self._on_scan_finished)
         self.worker.progress_update.connect(self._on_progress)
+        self.worker.scan_id.connect(self._on_scan_id_signal)
         self.worker.start()
 
         self.btn_start.setEnabled(False)
@@ -511,6 +512,9 @@ class ScanTab(QWidget):
         self.btn_pause.setChecked(False)
         self.btn_pause.setText("Pause")
         self._update_estimated_time()
+
+    def _on_scan_id_signal(self, id_signal = None):
+        self.scan_id = id_signal
 
     def _update_estimated_time(self, *_):
         try:
@@ -542,7 +546,8 @@ class ScanTab(QWidget):
 
         suffix = "s" if total_points != 1 else ""
         pts = f"{total_points} pt{suffix}"
-        self.lbl_status.setText(f"Ready  |  {pts}  |  ~ {fmt(estimated)}")
+        scan_id_label = f"   |   Scan ID: {self.scan_id}" if self.scan_id else ""
+        self.lbl_status.setText(f"Ready  |  {pts}  |  ~ {fmt(estimated)}{scan_id_label}")
 
     def _on_progress(self, current: int, total: int):
         self.lbl_status.setText(f"Scanning… {current}/{total}")

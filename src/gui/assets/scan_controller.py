@@ -53,6 +53,7 @@ class ScanWorker(QThread):
     scan_finished    = pyqtSignal()
     progress_update  = pyqtSignal(int, int)   # current, total
     status_update    = pyqtSignal(str)
+    scan_id          = pyqtSignal(str)
 
     def __init__(self, instruments, scan_config: dict):
         super().__init__()
@@ -65,8 +66,6 @@ class ScanWorker(QThread):
 
         self.logger: DataLogger | None = None
         self._monitor: StabilityMonitor | None = None
-
-        self.scan_id = None
 
     def stop(self):
         with QMutexLocker(self._mutex):
@@ -209,7 +208,7 @@ class ScanWorker(QThread):
 
             self.logger = DataLogger()
             self.logger.init_log(headers, full_comment)
-            self.scan_id = self.logger.filename.split("__")[-1].split(".")[0]
+            self.scan_id.emit(self.logger.filename.split("__")[-1].split(".")[0])
             self.status_update.emit(f"Saving to {self.logger.filename}")
 
             wait_conditions = self.config.get('wait_conditions', {})
