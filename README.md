@@ -105,15 +105,16 @@ devices:
         status_suffix: "voltage/1"
         command_suffix: "SET/voltage/1"
 
-      - key: "sep1" # Key must be different for each of them if several in the same card/device
-        type: "ui_sep"  # Device card UI Separator
-
       - key: "output_state_ch1"
         label: "Output Enable"
         type: "boolean"
         access: "read_write"
         status_suffix: "output/1"
         command_suffix: "SET/output/1"
+
+      - key: "sep1" # Key must be different for each of them if several in the same card/device
+        type: "ui_sep"  # Device card UI Separator
+
       - key: "locksetpoint"
         label: "Lock Setpoint"
         type: "float"
