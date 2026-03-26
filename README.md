@@ -115,13 +115,6 @@ devices:
       - key: "sep1" # Key must be different for each of them if several in the same card/device
         type: "ui_sep"  # Device card UI Separator
 
-      - key: "locksetpoint"
-        label: "Lock Setpoint"
-        type: "float"
-        access: "write"
-        unit: "THz"
-        command_suffix: "SET/frequency/1"
-
       - key: "stab_chnl_locksetpoint"
         label: "Locked"
         type: "boolean"
