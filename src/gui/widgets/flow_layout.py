@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, QRect, QSize, QPoint
 
 class FlowLayout(QLayout):
     def __init__(self, parent=None, margin=0, spacing=-1):
-        super(FlowLayout, self).__init__(parent)
+        super().__init__(parent)
         if parent is not None:
             self.setContentsMargins(margin, margin, margin, margin)
         self.setSpacing(spacing)
@@ -41,7 +41,7 @@ class FlowLayout(QLayout):
         return height
 
     def setGeometry(self, rect):
-        super(FlowLayout, self).setGeometry(rect)
+        super().setGeometry(rect)
         self._doLayout(rect, False)
 
     def sizeHint(self):
@@ -55,27 +55,42 @@ class FlowLayout(QLayout):
         return size
 
     def _doLayout(self, rect, testOnly):
-        x = rect.x()
-        y = rect.y()
-        lineHeight = 0
+        if not self.itemList:
+            return 0
+
+        first_item = self.itemList[0]
+        itemWidth = first_item.sizeHint().width()
         spacing = self.spacing()
 
-        for item in self.itemList:
-            wid = item.widget()
-            spaceX = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal)
-            spaceY = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton, QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical)
+        wid = first_item.widget()
+        if wid:
+            spaceX = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
+                                                         QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal)
+            spaceY = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
+                                                         QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical)
+        else:
+            spaceX = spacing if spacing >= 0 else 10
+            spaceY = spacing if spacing >= 0 else 10
 
-            nextX = x + item.sizeHint().width() + spaceX
-            if nextX - spaceX > rect.right() and lineHeight > 0:
-                x = rect.x()
-                y = y + lineHeight + spaceY
-                nextX = x + item.sizeHint().width() + spaceX
-                lineHeight = 0
+        effective_width = itemWidth + spaceX
+        if effective_width <= 0:
+            effective_width = 1
+
+        num_cols = max(1, (rect.width() + spaceX) // effective_width)
+
+        col_heights = [rect.y()] * num_cols
+
+        for item in self.itemList:
+            min_col_idx = col_heights.index(min(col_heights))
+
+            x = rect.x() + min_col_idx * effective_width
+            y = col_heights[min_col_idx]
+
+            itemHeight = item.sizeHint().height()
 
             if not testOnly:
-                item.setGeometry(QRect(QPoint(x, y), item.sizeHint()))
+                item.setGeometry(QRect(QPoint(x, y), QSize(itemWidth, itemHeight)))
 
-            x = nextX
-            lineHeight = max(lineHeight, item.sizeHint().height())
+            col_heights[min_col_idx] = y + itemHeight + spaceY
 
-        return y + lineHeight - rect.y()
+        return max(col_heights) - rect.y()

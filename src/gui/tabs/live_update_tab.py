@@ -47,6 +47,7 @@ class GraphBlock(QFrame):
         self.start_time = time.time()
         self.needs_redraw = False
         self.latest_value = 0.0
+        self.live_value_label_format = None
 
         self.active_hook_param = None
         self.active_original_callback = None
@@ -235,6 +236,7 @@ class GraphBlock(QFrame):
         self.graph.getPlotItem().setLabel('left', param.label or param.name, units=param.unit)
         self.graph.getPlotItem().setLabel('bottom', 'Time', units='s')
 
+        self.apply_theme()
         self.start_graph()
 
     def _record_value(self, value):
@@ -328,16 +330,18 @@ class GraphBlock(QFrame):
         theme = ThemeManager.get_theme()
         is_dark = theme == "dark"
 
+        if self.live_value_label_format:
+            self.live_value_label_format.set_theme(is_dark=is_dark)
         if is_dark:
             self.setStyleSheet(Style.Frame.container_dark)
             self.combo.setStyleSheet(Style.ComboBox.dark)
-            self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_dark)
+            # self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_dark)
             self.edit_window.setStyleSheet(Style.Input.line_edit_dark)
             self.btn_delete.setStyleSheet(Style.Button.simple_dark)
         else:
             self.setStyleSheet(Style.Frame.container_light)
             self.combo.setStyleSheet(Style.ComboBox.light)
-            self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_light)
+            # self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_light)
             self.edit_window.setStyleSheet(Style.Input.line_edit_light)
             self.btn_delete.setStyleSheet(Style.Button.simple_light)
 
