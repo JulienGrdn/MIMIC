@@ -1,6 +1,7 @@
 import os
 import yaml
 from functools import partial
+import ast, re
 from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
 from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
 
@@ -84,6 +85,7 @@ class GenericYamlDevice(InstrumentBase):
         access = chan_config.get('access', 'read_write')
         payload_format = chan_config.get('mqtt_payload_format', None)
         special = chan_config.get('special_channel', None)
+        passive_toggle_parameters = chan_config.get('passive_toggle_parameters', None)
 
         internal_ptype = 'str'
         if p_type == 'integer':
@@ -125,10 +127,31 @@ class GenericYamlDevice(InstrumentBase):
         if special:
             param.special_channel = special
             try:
-                import ast as _ast
-                param.coupling_type, param.coupled_channel = _ast.literal_eval(special)
+                param.coupling_type, param.coupled_channel = ast.literal_eval(special)
             except Exception as e:
                 print(f"[{self.name}] Could not parse special_channel '{special}' for '{key}': {e}")
+        if passive_toggle_parameters:
+            try:
+                parsed_val = ast.literal_eval(passive_toggle_parameters)
+                if not isinstance(parsed_val, list):
+                    raise ValueError(f"Expected a list, got {type(parsed_val).__name__}")
+                if len(parsed_val) < 4:
+                    parsed_val.extend([None] * (4 - len(parsed_val)))
+                elif len(parsed_val) > 4:
+                    parsed_val = parsed_val[:4]
+                color_regex = re.compile(r"^rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*[0-9.]+\s*\)$",re.IGNORECASE)
+                for i, item in enumerate(parsed_val):
+                    if item is not None:
+                        if not isinstance(item, str):
+                            raise ValueError(f"Element at index {i} must be a string or None")
+                        if i >= 2:
+                            if not color_regex.match(item.strip()):
+                                raise ValueError(
+                                    f"Element at index {i} must match 'rgb(r,g,b,alpha)' format, got '{item}'")
+                param.passive_toggle_parameters = parsed_val
+
+            except Exception as e:
+                print(f"[{self.name}] Could not parse special_channel '{passive_toggle_parameters}' for '{key}': {e}")
 
         if p_type == 'ui_sep':self.add_parameter(Parameter(name = param.name, ui_type = 'ui_sep', label = '', param_type = 'ui_sep'))
         else: self.add_parameter(param)

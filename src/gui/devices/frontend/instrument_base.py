@@ -21,6 +21,7 @@ class Parameter:
     payload_type: Optional[str] = None
     payload_value_location: Optional = None
     special_channel: Optional[str] = None
+    passive_toggle_parameters: list[str] = None
 
     update_widgets: list[Callable[[Any], None]] = None
     update_widget_styles: list[Callable[[str], None]] = None

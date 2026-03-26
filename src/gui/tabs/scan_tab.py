@@ -97,7 +97,7 @@ class ScanTab(QWidget):
         repeat_row.addWidget(self.inp_repeats)
         settings_layout.addLayout(repeat_row)
 
-        self.btn_wait_conditions = QPushButton("Wait Conditions")
+        self.btn_wait_conditions = QPushButton("Manage Wait Conditions")
         self.btn_wait_conditions.setStyleSheet(Style.Button.suggested)
         self.btn_wait_conditions.clicked.connect(self._open_wait_conditions_dialog)
         settings_layout.addWidget(self.btn_wait_conditions)

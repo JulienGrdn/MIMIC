@@ -104,6 +104,7 @@ devices:
         access: "read"
         status_suffix: "stab"    # subscribes to LLS/serial_number/stab
         special_channel: "('stability', 'self')"
+        passive_toggle_parameters: "['locked','unlocked', 'rgba(70, 120, 250, 1)', 'rgba(130, 130, 130, 1)']"  #[true_label, false_label, true_color, false_color]"
 
   - id: "dummy_shutter"
     name: "Dummy Shutter"

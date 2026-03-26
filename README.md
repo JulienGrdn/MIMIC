@@ -105,12 +105,30 @@ devices:
         status_suffix: "voltage/1"
         command_suffix: "SET/voltage/1"
 
+      - key: "sep1" # Key must be different for each of them if several in the same card/device
+        type: "ui_sep"  # Device card UI Separator
+
       - key: "output_state_ch1"
         label: "Output Enable"
         type: "boolean"
         access: "read_write"
         status_suffix: "output/1"
         command_suffix: "SET/output/1"
+      - key: "locksetpoint"
+        label: "Lock Setpoint"
+        type: "float"
+        access: "write"
+        unit: "THz"
+        command_suffix: "SET/frequency/1"
+
+      - key: "stab_chnl_locksetpoint"
+        label: "Locked"
+        type: "boolean"
+        access: "read"
+        status_suffix: "lock"
+        special_channel: "('stability', 'self')" # Pure boolean channel
+                                  # [true_label, false_label, true_color, false_color], overrides default
+        passive_toggle_parameters: "['locked','unlocked', 'rgba(70, 120, 250, 1)', 'rgba(130, 130, 130, 1)']"  # Optional
 ```
 
 In this example:

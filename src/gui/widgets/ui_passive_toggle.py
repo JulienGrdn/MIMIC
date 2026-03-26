@@ -9,14 +9,14 @@ class StabilityIndicator(QLabel):
             parent=None,
             true_label="Stable",
             false_label="Unstable",
-            true_color="rgba(46, 204, 113, 1)",  # Default Green
-            false_color="rgba(231, 76, 60, 1)"  # Default Red
+            true_color=None,
+            false_color=None
     ):
         super().__init__(false_label, parent)
         self.true_label = true_label
         self.false_label = false_label
-        self.true_color = true_color
-        self.false_color = false_color
+        self.true_color = true_color if true_color else "rgba(46, 204, 113, 1)" # Default Green
+        self.false_color = false_color if false_color else "rgba(231, 76, 60, 1)" # Default Red
 
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setFixedSize(65, 20)

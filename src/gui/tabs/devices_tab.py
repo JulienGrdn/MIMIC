@@ -149,7 +149,10 @@ class InstrumentFrame(QFrame):
 
     def _create_input_widget(self, param: Parameter, parent_layout: QHBoxLayout):
         if param.ui_type == 'stability_indicator':
-            widget = StabilityIndicator()
+            if param.passive_toggle_parameters:
+                widget = StabilityIndicator(None, *param.passive_toggle_parameters)
+            else:
+                widget = StabilityIndicator()
             parent_layout.addWidget(widget)
             if hasattr(param, 'update_widget'):
                 param.update_widget = widget.set_state
