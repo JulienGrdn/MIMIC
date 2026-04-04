@@ -15,7 +15,7 @@ from mimic.widgets.popups import Popups
 
 logger = logging.getLogger(__name__)
 
-ASSETS_DIR   = os.path.join(os.getcwd(), "src", "gui", "assets")
+ASSETS_DIR   = os.path.join(os.getcwd(), "src", "mimic", "assets")
 MASTER_TOPIC = "MIMICsoftware/Master"
 _CLAIM_DELAY_MS = 500
 
@@ -120,7 +120,7 @@ class AboutTab(QWidget):
         c_info = _Card()
         self._cards.append(c_info)
 
-        self.lbl_title = QLabel("MIMIC Control Software")
+        self.lbl_title = QLabel("MIMIC")
         self.lbl_title.setObjectName("about_title")
         self.lbl_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         c_info.body().addWidget(self.lbl_title)
