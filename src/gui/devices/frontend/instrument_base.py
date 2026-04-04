@@ -148,7 +148,11 @@ class Parameter:
         self.update_current_value(value)
 
     def notify_readout_rich_parameter(self, value):
-        full_str = f"{float(value):.4f}" if self.param_type == 'float' else value
+        try:
+            full_str = f"{float(value):.4f}" if self.param_type == 'float' else value
+        except ValueError:
+            print(ValueError)
+            return
         color_style = "color: #2ecc71;" if self.stable else ""
 
         text = (
@@ -179,7 +183,7 @@ class Parameter:
                     extracted_value = parsed_payload.get(self.payload_value_location)
                     if extracted_value is None:
                         print(f"[{self.name}] Warning: Key '{self.payload_value_location}' not found in payload dict.")
-                        return payload  # Fallback or return None depending on your system's preference
+                        return self.current_value
                     return extracted_value
 
                 elif self.payload_type == 'list' and isinstance(parsed_payload, list):
