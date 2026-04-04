@@ -1,18 +1,21 @@
+import logging
 import json
 import os
 from collections import defaultdict
+
+logger = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTextEdit, QFrame, QGridLayout, QGroupBox,
     QScrollArea, QComboBox, QDialog
 )
-from src.gui.widgets.qtgraph import Graph
-from src.gui.assets.csstyle import Style
-from src.gui.assets.theme_manager import ThemeManager
-from src.gui.assets.scan_controller import ScanWorker
-from src.gui.assets.icon_utils import CustomIcon
-from src.gui.widgets.noscrollcombobox import NSCB
-from src.gui.widgets.smaller_toggle import AnimatedToggle
+from mimic.widgets.qtgraph import Graph
+from mimic.assets.csstyle import Style
+from mimic.assets.theme_manager import ThemeManager
+from mimic.assets.scan_controller import ScanWorker
+from mimic.assets.icon_utils import CustomIcon
+from mimic.widgets.noscrollcombobox import NSCB
+from mimic.widgets.smaller_toggle import AnimatedToggle
 
 
 SCAN_CONFIG_FILE = os.path.join(os.getcwd(), 'config', 'scan_axes.json')
@@ -396,7 +399,7 @@ class ScanTab(QWidget):
             with open(SCAN_CONFIG_FILE, 'w') as f:
                 json.dump(config_data, f, indent=4)
         except Exception as e:
-            print(f"[ScanTab] Error saving scan axes: {e}")
+            logger.exception("Error saving scan axes")
 
     def _load_scan_axes(self):
         self._loading_config = True
@@ -429,7 +432,7 @@ class ScanTab(QWidget):
                 steps.setText(str(axis.get('steps', '10')))
 
         except Exception as e:
-            print(f"[ScanTab] Error loading scan axes: {e}")
+            logger.exception("Error loading scan axes")
             if not self.axis_widgets:
                 self.add_axis_row()
         finally:

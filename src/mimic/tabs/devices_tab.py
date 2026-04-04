@@ -1,5 +1,8 @@
+import logging
 import sys
 import importlib.util
+
+logger = logging.getLogger(__name__)
 from collections import defaultdict
 from typing import List, Optional
 from PyQt6.QtCore import Qt, QTimer
@@ -16,15 +19,15 @@ from PyQt6.QtWidgets import (
     QStackedWidget,
     QListWidgetItem
 )
-from src.gui.assets.csstyle import Style
-from src.gui.assets.theme_manager import ThemeManager
-from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
-from src.gui.widgets.smaller_toggle import AnimatedToggle
-from src.gui.widgets.flow_layout import FlowLayout
-from src.gui.assets.instance_state import InstanceState
-from src.gui.widgets.popups import Popups
-from src.gui.widgets.ui_line_separator import qframe_line_separator
-from src.gui.widgets.ui_passive_toggle import StabilityIndicator
+from mimic.assets.csstyle import Style
+from mimic.assets.theme_manager import ThemeManager
+from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
+from mimic.widgets.smaller_toggle import AnimatedToggle
+from mimic.widgets.flow_layout import FlowLayout
+from mimic.assets.instance_state import InstanceState
+from mimic.widgets.popups import Popups
+from mimic.widgets.ui_line_separator import qframe_line_separator
+from mimic.widgets.ui_passive_toggle import StabilityIndicator
 
 class InstrumentFrame(QFrame):
     """
@@ -205,10 +208,10 @@ class InstrumentFrame(QFrame):
 
             if param.set_cmd:
                 param.set_cmd(value)
-                print(f"[{self.instrument.name}] Set {param.name} = {value}")
+                logger.debug("[%s] Set %s = %s", self.instrument.name, param.name, value)
 
         except ValueError:
-            print(f"[{self.instrument.name}] Error: Invalid input for {param.name}")
+            logger.warning("[%s] Invalid input for %s", self.instrument.name, param.name)
 
     def _refresh_rate_labels(self):
         for param, lbl in self._rate_labels:
@@ -325,7 +328,7 @@ class InstrumentPanel(QWidget):
         loaded = []
 
         try:
-            yml_module = importlib.import_module("src.gui.devices.yaml_plugin")
+            yml_module = importlib.import_module("mimic.devices.yaml_plugin")
             for attr_name in dir(yml_module):
                 attr = getattr(yml_module, attr_name)
                 if (isinstance(attr, type) and
@@ -335,17 +338,17 @@ class InstrumentPanel(QWidget):
                     try:
                         inst_obj = attr()
                         loaded.append(inst_obj)
-                        print(f">> [InstrumentPanel] Successfully loaded {attr_name}")
+                        logger.info("Loaded instrument: %s", attr_name)
                     except Exception as e:
-                        print(f">> [InstrumentPanel] Failed to instantiate {attr_name}: {e}")
+                        logger.exception("Failed to instantiate %s", attr_name)
 
         except ImportError as e:
-            print(f">> [InstrumentPanel] Could not find module: {e}")
+            logger.exception("Could not find yaml_plugin module")
         except Exception as e:
-            print(f">> [InstrumentPanel] Critical error loading yaml_plugin: {e}")
+            logger.exception("Critical error loading yaml_plugin")
 
         finally:
-            sys.modules.pop("src.gui.devices.yaml_plugin", None)
+            sys.modules.pop("mimic.devices.yaml_plugin", None)
             if 'yml_module' in locals():
                 del yml_module
 

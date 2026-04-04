@@ -1,7 +1,10 @@
+import logging
 import sys
 import subprocess
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtCore import Qt
+
+logger = logging.getLogger(__name__)
 
 
 def get_system_theme() -> str:
@@ -52,7 +55,7 @@ def get_system_theme() -> str:
                 return "light"
 
     except Exception as e:
-        print(f"OS detection skipped: {e}")
+        logger.debug("OS theme detection skipped: %s", e)
 
     try:
         app = QGuiApplication.instance()

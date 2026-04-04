@@ -1,19 +1,22 @@
+import logging
 import sys
 import json
 import os
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QListWidget, QStackedWidget, QLineEdit, QComboBox, QCheckBox, QPushButton, QApplication
 from PyQt6.QtGui import QColor
-from src.gui.assets.csstyle import Style
-from src.gui.assets.theme_manager import ThemeManager
-from src.gui.tabs.devices_tab import InstrumentPanel
-from src.gui.tabs.live_update_tab import LiveUpdateWidget
-from src.gui.tabs.scan_tab import ScanTab
-from src.gui.tabs.about_tab import AboutTab
-from src.gui.widgets.noscrollcombobox import NSCB
-from src.gui.widgets.smaller_toggle import AnimatedToggle
-from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler, stop_all_brokers
-from src.gui.assets.instance_state import STATE_SLAVE, InstanceState
+from mimic.assets.csstyle import Style
+from mimic.assets.theme_manager import ThemeManager
+from mimic.tabs.devices_tab import InstrumentPanel
+from mimic.tabs.live_update_tab import LiveUpdateWidget
+from mimic.tabs.scan_tab import ScanTab
+from mimic.tabs.about_tab import AboutTab
+from mimic.widgets.noscrollcombobox import NSCB
+from mimic.widgets.smaller_toggle import AnimatedToggle
+from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler, stop_all_brokers
+from mimic.assets.instance_state import STATE_SLAVE, InstanceState
+
+logger = logging.getLogger(__name__)
 
 CONFIG_PATH = os.path.join(os.getcwd(), "config", "ui_parameters.json")
 
@@ -97,7 +100,7 @@ class MainWindow(QMainWindow):
 
     def display_page(self, index: int):
         if index == 2 and not self._scan_unlocked:
-            from src.gui.widgets.popups import Popups
+            from mimic.widgets.popups import Popups
             Popups.read_only(self)
             from PyQt6.QtCore import QTimer
             QTimer.singleShot(0, lambda: self._restore_sidebar(self.stack.currentIndex()))
@@ -115,23 +118,23 @@ class MainWindow(QMainWindow):
             handler = get_shared_handler(broker)
             handler.stop()
             handler.start()
-            print("[MainWindow] Broker reconnection requested.")
+            logger.info("Broker reconnection requested.")
         except Exception as e:
-            print(f"[MainWindow] Reconnect error: {e}")
+            logger.exception("Broker reconnect failed")
 
     def _reload_devices(self):
         try:
-            print("[MainWindow] Reloading devices…")
+            logger.info("Reloading devices…")
             self.devices_panel._load_and_display_devices()
             instruments = self.devices_panel.loaded_instruments
             if hasattr(self.live_update_page, 'set_instruments'):
                 self.live_update_page.set_instruments(instruments)
             if hasattr(self.scan_page, 'set_instruments'):
                 self.scan_page.set_instruments(instruments)
-            print("[MainWindow] Devices reloaded.")
+            logger.info("Devices reloaded (%d instruments).", len(instruments))
             return len(instruments)
         except Exception as e:
-            print(f"[MainWindow] Reload error: {e}")
+            logger.exception("Device reload failed")
 
 
     def _on_master_state_changed(self, state: str):
@@ -180,7 +183,7 @@ class MainWindow(QMainWindow):
             with open(CONFIG_PATH, 'w') as f:
                 json.dump(state, f, indent=4)
         except Exception as e:
-            print(f"Error saving UI state: {e}")
+            logger.exception("Error saving UI state")
 
     def load_ui_state(self):
         if not os.path.exists(CONFIG_PATH):
@@ -207,7 +210,7 @@ class MainWindow(QMainWindow):
                 self.about_page._on_follow_toggled(True)
 
         except Exception as e:
-            print(f"Error loading UI state: {e}")
+            logger.exception("Error loading UI state")
 
 
     def setup_os_identity(self):
@@ -216,7 +219,7 @@ class MainWindow(QMainWindow):
         and doesn't show up as a generic Python launcher.
         """
         app_id    = "com.github.juliengrdn.mimic"
-        icon_path = os.path.join(os.getcwd(), "src", "gui", "assets", "MIMIC.ico")
+        icon_path = os.path.join(os.getcwd(), "src", "mimic", "assets", "MIMIC.ico")
 
         if os.path.exists(icon_path):
             from PyQt6.QtGui import QIcon
@@ -244,6 +247,6 @@ class MainWindow(QMainWindow):
         try:
             stop_all_brokers()
         except Exception as e:
-            print(f"[MainWindow] MQTT disconnect error: {e}")
+            logger.exception("MQTT disconnect error")
 
 

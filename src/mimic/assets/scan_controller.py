@@ -1,10 +1,13 @@
+import logging
 import os
 import csv
 import time
 import datetime
 import itertools
+
+logger = logging.getLogger(__name__)
 from PyQt6.QtCore import QThread, pyqtSignal, QMutex, QMutexLocker
-from src.gui.assets.stability_monitor import StabilityMonitor
+from mimic.assets.stability_monitor import StabilityMonitor
 
 
 class DataLogger:
@@ -264,7 +267,7 @@ class ScanWorker(QThread):
 
         except Exception as e:
             self.status_update.emit(f"Error: {e}")
-            print(f"[ScanWorker] Error: {e}")
+            logger.exception("ScanWorker error")
 
         finally:
             if self._monitor:

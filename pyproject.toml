@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mimic-gui"
+version = "0.1.0"
+description = "MQTT Interface for Modular Instrument Control"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6",
+    "paho-mqtt",
+    "PyYAML",
+    "pyqtgraph",
+    "numpy",
+    "QtPy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-qt",
+    "pytest-mock",
+]
+
+[project.scripts]
+mimic = "mimic.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mimic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --tb=short"

@@ -1,6 +1,10 @@
+import logging
+
 from PyQt6.QtCore import QObject, pyqtSignal
 import paho.mqtt.client as mqtt
 import uuid
+
+logger = logging.getLogger(__name__)
 
 class MqttHandler(QObject):
     """
@@ -26,22 +30,22 @@ class MqttHandler(QObject):
             # First attempt: Connect to the primary configured broker
             self.client.connect(self.broker, self.port, 60)
             self.client.loop_start()  # Run in a background thread
-            print(f"[MQTT] Connected successfully to {self.broker}")
+            logger.info("Connected successfully to %s", self.broker)
 
         except Exception as primary_error:
-            print(f"[MQTT] Primary connection to {self.broker} failed: {primary_error}")
-            print("[MQTT] Attempting fallback connection to localhost...")
+            logger.warning("Primary connection to %s failed: %s", self.broker, primary_error)
+            logger.warning("Attempting fallback connection to localhost...")
 
             try:
                 # Fallback attempt: Connect to localhost
                 self.broker = "localhost"
                 self.client.connect("localhost", self.port, 60)
                 self.client.loop_start()
-                print("[MQTT] Connected successfully to localhost fallback")
+                logger.info("Connected successfully to localhost fallback")
 
             except Exception as fallback_error:
                 # Both attempts failed
-                print(f"[MQTT] Fallback connection Error: {fallback_error}")
+                logger.error("Fallback connection error: %s", fallback_error)
                 self.connection_status.emit(False)
 
     def stop(self):
@@ -57,10 +61,10 @@ class MqttHandler(QObject):
 
     def on_connect(self, client, userdata, flags, rc, properties=None):
         if rc == 0:
-            print(f"[MQTT] Connected to {self.broker} with on connect code {rc}")
+            logger.info("Connected to %s (rc=%s)", self.broker, rc)
             self.connection_status.emit(True)
         else:
-            print(f"[MQTT] Connect failed with code {rc}")
+            logger.warning("Connect failed with code %s", rc)
             self.connection_status.emit(False)
 
     def on_message(self, client, userdata, msg):
@@ -68,5 +72,5 @@ class MqttHandler(QObject):
         self.message_received.emit(msg.topic, payload)
 
     def on_disconnect(self, client, userdata, rc, properties=None):
-        print("[MQTT] Disconnected")
+        logger.info("Disconnected from %s", self.broker)
         self.connection_status.emit(False)

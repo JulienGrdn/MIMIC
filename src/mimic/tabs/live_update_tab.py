@@ -1,5 +1,8 @@
+import logging
 import time
 import numpy as np
+
+logger = logging.getLogger(__name__)
 from typing import List, Optional
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
@@ -12,11 +15,11 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QLineEdit
 )
-from src.gui.assets.csstyle import Style, HTMLValueFormatter
-from src.gui.assets.theme_manager import ThemeManager
-from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
-from src.gui.widgets.qtgraph import Graph
-from src.gui.widgets.noscrollcombobox import NSCB
+from mimic.assets.csstyle import Style, HTMLValueFormatter
+from mimic.assets.theme_manager import ThemeManager
+from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
+from mimic.widgets.qtgraph import Graph
+from mimic.widgets.noscrollcombobox import NSCB
 import math
 
 _LOG_MS_MIN = math.log(16)      # 60 Hz
@@ -187,7 +190,7 @@ class GraphBlock(QFrame):
             self.max_window_seconds = minutes * 60.0
             if not self.paused:
                 self.render_timer.start(self._adaptive_refresh_ms())
-            print(f"Graph window set to {minutes} min")
+            logger.debug("Graph window set to %s min", minutes)
         except ValueError:
             pass
 
@@ -220,7 +223,7 @@ class GraphBlock(QFrame):
                 try:
                     return original_callback(value) #Si il y a une function a la base ca lexecute
                 except Exception as e:
-                    print(f"Error in original callback: {e}")
+                    logger.exception("Error in original callback")
 
         # Change le function par intercepteur
         param.update_current_value = intercepteur
@@ -245,7 +248,7 @@ class GraphBlock(QFrame):
         try:
             val = float(value)
         except (ValueError, TypeError) as e:
-            print(e)
+            logger.warning("Cannot record value %r: %s", value, e)
             return
 
         idx = self._buf_head % self._buf_size
@@ -299,19 +302,19 @@ class GraphBlock(QFrame):
     def start_graph(self):
         self.paused = False
         self.render_timer.start(self._adaptive_refresh_ms())
-        print("Graph Resumed")
+        logger.debug("Graph resumed.")
 
     def stop_graph(self):
         self.paused = True
         self.render_timer.stop()
-        print("Graph Paused")
+        logger.debug("Graph paused.")
 
     def reset_graph(self):
         self._buf_head  = 0
         self._buf_count = 0
         self.graph.line_curve.setData([], [])
         self.graph.dot_curve.setData([], [])
-        print("Graph Reset")
+        logger.debug("Graph reset.")
 
     def delete_block(self):
         self.render_timer.stop()

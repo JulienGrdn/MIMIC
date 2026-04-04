@@ -1,5 +1,8 @@
+import logging
 import time
 from collections import deque
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from typing import Callable, Any, Optional, Iterable
 from PyQt6.QtCore import QObject
@@ -151,7 +154,7 @@ class Parameter:
         try:
             full_str = f"{float(value):.4f}" if self.param_type == 'float' else value
         except ValueError:
-            print(ValueError)
+            logger.warning("Cannot format value %r as float for parameter %s", value, self.name)
             return
         color_style = "color: #2ecc71;" if self.stable else ""
 
@@ -182,7 +185,7 @@ class Parameter:
                 if self.payload_type == 'dict' and isinstance(parsed_payload, dict):
                     extracted_value = parsed_payload.get(self.payload_value_location)
                     if extracted_value is None:
-                        print(f"[{self.name}] Warning: Key '{self.payload_value_location}' not found in payload dict.")
+                        logger.warning("[%s] Key '%s' not found in payload dict.", self.name, self.payload_value_location)
                         return self.current_value
                     return extracted_value
 
@@ -191,14 +194,14 @@ class Parameter:
                     if idx < len(parsed_payload):
                         return parsed_payload[idx]
                     else:
-                        print(f"[{self.name}] Warning: Index '{idx}' out of bounds for payload list.")
+                        logger.warning("[%s] Index '%s' out of bounds for payload list.", self.name, idx)
                         return payload
 
                 else:
                     return parsed_payload[self.payload_value_location]
 
             except (ValueError, SyntaxError, TypeError, Exception) as e:
-                print(f"Payload parsing error for {self.name}: {e}. Raw payload: {payload}")
+                logger.warning("Payload parsing error for %s: %s. Raw: %r", self.name, e, payload)
                 return payload
         else:
             return payload

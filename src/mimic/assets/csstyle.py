@@ -545,7 +545,7 @@ class Style:
             }}
 
             QComboBox::down-arrow {{
-                image: url(src/gui/assets/dropdownlight.svg);
+                image: url(src/mimic/assets/dropdownlight.svg);
                 width: 12px;
                 height: 12px;
             }}
@@ -599,7 +599,7 @@ class Style:
             }}
 
             QComboBox::down-arrow {{
-                image: url(src/gui/assets/dropdowndark.svg);
+                image: url(src/mimic/assets/dropdowndark.svg);
                 width: 12px;
                 height: 12px;
             }}

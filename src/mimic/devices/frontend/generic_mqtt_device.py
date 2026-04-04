@@ -1,5 +1,5 @@
 from PyQt6.QtCore import QObject, pyqtSignal
-from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler
+from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler
 
 class GenericMqttDevice(QObject):
     """

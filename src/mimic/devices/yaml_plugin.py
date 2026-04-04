@@ -1,9 +1,12 @@
+import logging
 import os
 import yaml
 from functools import partial
 import ast, re
-from src.gui.devices.frontend.instrument_base import InstrumentBase, Parameter
-from src.gui.devices.frontend.universal_mqtt import UniversalMqttDevice
+
+logger = logging.getLogger(__name__)
+from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
+from mimic.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
 CONFIG_PATH = 'config/devices_configuration.yaml'
@@ -11,7 +14,7 @@ CONFIG_PATH = 'config/devices_configuration.yaml'
 
 def load_yaml_config():
     if not os.path.exists(CONFIG_PATH):
-        print(f"Error: Config file not found at {CONFIG_PATH}")
+        logger.warning("Config file not found at %s", CONFIG_PATH)
         return {}
     with open(CONFIG_PATH, 'r') as f:
         return yaml.safe_load(f)
@@ -75,7 +78,10 @@ class GenericYamlDevice(InstrumentBase):
                                 self._stability_link_map[param.name] = p
                                 break
 
-        print(f"Mapped {len(self._status_map)} status topics (some shared), {len(self._command_map)} command topics, and {len(self._stability_link_map)} stability links for fast routing.")
+        logger.debug(
+            "Mapped %d status topics, %d command topics, %d stability links for fast routing.",
+            len(self._status_map), len(self._command_map), len(self._stability_link_map)
+        )
 
     def _add_yaml_channel(self, chan_config):
         key = chan_config.get('key')
@@ -129,7 +135,7 @@ class GenericYamlDevice(InstrumentBase):
             try:
                 param.coupling_type, param.coupled_channel = ast.literal_eval(special)
             except Exception as e:
-                print(f"[{self.name}] Could not parse special_channel '{special}' for '{key}': {e}")
+                logger.warning("[%s] Could not parse special_channel '%s' for '%s': %s", self.name, special, key, e)
         if passive_toggle_parameters:
             try:
                 parsed_val = ast.literal_eval(passive_toggle_parameters)
@@ -151,7 +157,7 @@ class GenericYamlDevice(InstrumentBase):
                 param.passive_toggle_parameters = parsed_val
 
             except Exception as e:
-                print(f"[{self.name}] Could not parse special_channel '{passive_toggle_parameters}' for '{key}': {e}")
+                logger.warning("[%s] Could not parse passive_toggle_parameters '%s' for '%s': %s", self.name, passive_toggle_parameters, key, e)
 
         if p_type == 'ui_sep':self.add_parameter(Parameter(name = param.name, ui_type = 'ui_sep', label = '', param_type = 'ui_sep'))
         else: self.add_parameter(param)
@@ -160,7 +166,7 @@ class GenericYamlDevice(InstrumentBase):
         if not self.mqtt_base:
             return
 
-        print(f"[{self.name}] Connecting to MQTT: {self.mqtt_base}")
+        logger.info("[%s] Connecting to MQTT: %s", self.name, self.mqtt_base)
 
         try:
             self.driver = UniversalMqttDevice(self.mqtt_base, broker_address=BROKER)
@@ -171,7 +177,7 @@ class GenericYamlDevice(InstrumentBase):
             self.driver.message_received_signal.connect(self.on_mqtt_message)
 
         except Exception as e:
-            print(f"[{self.name}] Connection failed: {e}")
+            logger.exception("[%s] Connection failed", self.name)
 
     def set_value_wrapper(self, suffix, value):
         if self.driver:

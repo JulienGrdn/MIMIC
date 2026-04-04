@@ -1,17 +1,19 @@
+import logging
 import os
 import socket
 import uuid
 from PyQt6.QtCore    import Qt, QTimer
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QFrame, QPushButton, QMessageBox, QGridLayout
 from PyQt6.QtGui import QPixmap
-from src.gui.assets.csstyle import Style, Palette
-from src.gui.assets.theme_manager import ThemeManager
-from src.gui.widgets.smaller_toggle import AnimatedToggle
-from src.gui.devices.frontend.mqtt_broker_registry import get_shared_handler
-from src.gui.assets.instance_state import InstanceState, STATE_MASTER, STATE_SLAVE
-from src.gui.assets.os_theme import get_system_theme
-from src.gui.widgets.popups import Popups
+from mimic.assets.csstyle import Style, Palette
+from mimic.assets.theme_manager import ThemeManager
+from mimic.widgets.smaller_toggle import AnimatedToggle
+from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler
+from mimic.assets.instance_state import InstanceState, STATE_MASTER, STATE_SLAVE
+from mimic.assets.os_theme import get_system_theme
+from mimic.widgets.popups import Popups
 
+logger = logging.getLogger(__name__)
 
 ASSETS_DIR   = os.path.join(os.getcwd(), "src", "gui", "assets")
 MASTER_TOPIC = "MIMICsoftware/Master"
@@ -270,7 +272,7 @@ class AboutTab(QWidget):
                 self._claim_timer.start(_CLAIM_DELAY_MS)
 
         except Exception as e:
-            print(f"[AboutTab] Master MQTT init failed: {e}")
+            logger.exception("Master MQTT init failed")
             self._apply_state(STATE_SLAVE)
 
     def _on_connection_status(self, connected: bool):
@@ -309,7 +311,7 @@ class AboutTab(QWidget):
                 retain=True
             )
         except Exception as e:
-            print(f"[AboutTab] Failed to publish master claim: {e}")
+            logger.exception("Failed to publish master claim")
 
     def release_claim(self):
         """release our client_id if claimed."""
@@ -322,7 +324,7 @@ class AboutTab(QWidget):
                     retain=True
                 )
             except Exception as e:
-                print(f"[AboutTab] Failed to release master claim: {e}")
+                logger.exception("Failed to release master claim")
 
     def _on_mqtt_message(self, topic: str, payload: str):
         if topic != self._master_topic:
@@ -372,7 +374,7 @@ class AboutTab(QWidget):
                 self._on_reconnect()
             QTimer.singleShot(1500, self._after_reconnect)
         except Exception as e:
-            print(f"[AboutTab] Reconnect error: {e}")
+            logger.exception("Reconnect error")
             self._after_reconnect()
 
     def _after_reconnect(self):
@@ -389,10 +391,11 @@ class AboutTab(QWidget):
         self.btn_reload.setText("Reloading…")
         try:
             if self._on_reload:
-                self.lbl_instr.setText(f"Config file loaded with {str(self._on_reload())} devices.")
-                print(self._on_reload())
+                count = self._on_reload()
+                self.lbl_instr.setText(f"Config file loaded with {count} devices.")
+                logger.debug("Device reload returned %s instruments.", count)
         except Exception as e:
-            print(f"[AboutTab] Reload error: {e}")
+            logger.exception("Reload error")
         QTimer.singleShot(1500, lambda: (
             self.btn_reload.setEnabled(True),
             self.btn_reload.setText("Reload Devices")
@@ -419,7 +422,7 @@ class AboutTab(QWidget):
                 self.toggle_dark.set_state(True if theme == "dark" else False)
                 self.toggle_dark.blockSignals(False)
         except Exception as e:
-            print(e)
+            logger.debug("OS theme detection error: %s", e)
 
     def apply_theme(self):
         theme   = ThemeManager.get_theme()

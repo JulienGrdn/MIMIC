@@ -4,7 +4,7 @@ import random
 import ast
 import paho.mqtt.client as mqtt
 import InitializeMIMIC
-from src.gui.assets.csstyle import Style
+from mimic.assets.csstyle import Style
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QGroupBox, QLabel, QDoubleSpinBox,
                              QSpinBox, QPushButton, QScrollArea, QFormLayout,

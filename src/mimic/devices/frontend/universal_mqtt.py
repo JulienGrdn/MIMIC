@@ -1,5 +1,9 @@
+import logging
+
 from PyQt6.QtCore import pyqtSignal, QObject
-from src.gui.devices.frontend.generic_mqtt_device import GenericMqttDevice
+from mimic.devices.frontend.generic_mqtt_device import GenericMqttDevice
+
+logger = logging.getLogger(__name__)
 
 
 class UniversalMqttDevice(GenericMqttDevice):
@@ -40,10 +44,10 @@ class UniversalMqttDevice(GenericMqttDevice):
         If we just connected, we must RE-SUBSCRIBE to everything.
         """
         if connected:
-            print(f"[{self.topic_base}] Reconnected! Restoring {len(self.subscriptions)} subscriptions...")
+            logger.info("[%s] Reconnected. Restoring %d subscriptions.", self.topic_base, len(self.subscriptions))
             for topic in self.subscriptions:
                 self.mqtt.subscribe(topic)
-                print(f"   -> Resubscribed to {topic}")
+                logger.debug("Resubscribed to %s", topic)
 
     def publish_param(self, suffix, value):
         """
