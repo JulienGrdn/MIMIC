@@ -9,6 +9,7 @@ from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
 from mimic.devices.frontend.universal_mqtt import UniversalMqttDevice
 
 BROKER = None
+VIRTUAL_LAB = None
 CONFIG_PATH = 'config/devices_configuration.yaml'
 
 
@@ -36,7 +37,8 @@ class GenericYamlDevice(InstrumentBase):
 
         self._status_map = {}
         self._command_map = {}
-        self._stability_link_map = {} # Maps stability channel name -> base channel Parameter
+        self._stability_link_map = {}   # Maps stability param name -> base channel Parameter
+        self._timestamp_link_map = {}   # Maps timestamp param name -> related Parameter
 
         for channel in device_config.get('channels', []):
             self._add_yaml_channel(channel)
@@ -52,6 +54,7 @@ class GenericYamlDevice(InstrumentBase):
         self._status_map.clear()
         self._command_map.clear()
         self._stability_link_map.clear()
+        self._timestamp_link_map.clear()
 
         for param in self.get_all_params():
             if hasattr(param, '_status_suffix') and param._status_suffix:
@@ -78,9 +81,19 @@ class GenericYamlDevice(InstrumentBase):
                                 self._stability_link_map[param.name] = p
                                 break
 
+                elif getattr(param, 'coupling_type', None) == 'timestamp':
+                    related_channel_name = getattr(param, 'coupled_channel', None)
+                    if not related_channel_name:
+                        continue
+                    for p in self.get_all_params():
+                        if p.name == related_channel_name:
+                            self._timestamp_link_map[param.name] = p
+                            break
+
         logger.debug(
-            "Mapped %d status topics, %d command topics, %d stability links for fast routing.",
-            len(self._status_map), len(self._command_map), len(self._stability_link_map)
+            "Mapped %d status topics, %d command topics, %d stability links, %d timestamp links for fast routing.",
+            len(self._status_map), len(self._command_map), len(self._stability_link_map),
+            len(self._timestamp_link_map)
         )
 
     def _add_yaml_channel(self, chan_config):
@@ -210,6 +223,15 @@ class GenericYamlDevice(InstrumentBase):
                     bool_payload = bool(param_payload)
                 param_payload = bool_payload
 
+            # If this is a linked timestamp channel, update the related param's _last_timestamp
+            if param.name in self._timestamp_link_map:
+                related_param = self._timestamp_link_map[param.name]
+                related_param._last_timestamp = param_payload
+                param.current_value = param_payload
+                if hasattr(param, 'notify_readout_rich_parameter'):
+                    param.notify_readout_rich_parameter(param_payload)
+                continue
+
             # If this is a linked stability channel, update the base param's .stable flag
             if param.name in self._stability_link_map:
                 base_param = self._stability_link_map[param.name]
@@ -245,6 +267,7 @@ class GenericYamlDevice(InstrumentBase):
 config_data = load_yaml_config()
 if config_data:
     BROKER = config_data.get('broker', '')
+    VIRTUAL_LAB = config_data.get('virtual_lab') or None
     for i, dev_conf in enumerate(config_data.get('devices', [])):
         dev_id = dev_conf.get('id')
 

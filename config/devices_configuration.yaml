@@ -1,4 +1,5 @@
 broker: "broker.ip.address"
+virtual_lab: "my_lab"
 
 devices:
   - id: "dummy_power_supply"
@@ -17,6 +18,16 @@ devices:
         unit: "V"
         status_suffix: "voltage/1"
         command_suffix: "SET/voltage/1"
+
+      - key: "voltage_ch1_timestamp"
+        label: "Timestamp V Chnl1"
+        description: "timestamp voltage for Channel 1"
+        type: "str"
+        mqtt_payload_format: "('dict', 'timestamp')" # dictionnary, key -> into a tuple
+        access: "read"
+        status_suffix: "voltage/1"
+        special_channel: "('timestamp', 'voltage_ch1')"
+
 
       - key: "current_ch1"
         label: "Current (Ch1)"

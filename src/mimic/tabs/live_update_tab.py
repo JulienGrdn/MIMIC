@@ -54,6 +54,9 @@ class GraphBlock(QFrame):
 
         self.active_hook_param = None
         self.active_original_callback = None
+        self._timestamp_hook_param = None
+        self._timestamp_original_callback = None
+        self._latest_timestamp_x: float | None = None
         self.max_window_seconds = 60
         self.paused = False
         self.init_ui()
@@ -152,17 +155,31 @@ class GraphBlock(QFrame):
         2. param name (or label) in updated_labels list.
         """
         updated_labels = [
-            "frequency", "Frequency",
-            "amplitude", "Amplitude",
-            "count", "Count",
-            "voltage", "Voltage",
-            "current", "Current",
-            "power", "Power",
-            "temperature", "Temperature",
-            "pressure", "Pressure",
-            "reading", "Reading",
-            "measured_frequency",
-            "sigma", 'channel'
+            # Frequency-related
+            "frequency", "Frequency", "freq", "Freq", "f", "measured_frequency",
+            # Amplitude / signal
+            "amplitude", "Amplitude", "amp", "Amp", "signal", "Signal",
+            "intensity", "Intensity",
+            # Counting / events
+            "count", "Count", "counts", "Counts", "event_count", "Event_count",
+            # Voltage / electrical
+            "voltage", "Voltage", "volt", "Volt", "V","potential", "Potential",
+            # Current
+            "current", "Current", "ampere", "Ampere", "I",
+            # Power / energy
+            "power", "Power", "energy", "Energy", "watt", "Watt",
+            # Temperature
+            "temperature", "Temperature", "temp", "Temp", "T",
+            # Pressure
+            "pressure", "Pressure", "P",
+            # Time-related
+            "time", "Time", "timestamp", "Timestamp", "t",
+            # Generic measurement labels
+            "reading", "Reading", "measurement", "Measurement","value", "Value", "data", "Data",
+            # Statistical terms
+            "sigma", "Sigma", "std", "Std", "std_dev", "Std_dev","variance", "Variance", "mean", "Mean", "average", "Average",
+            # Channels / indexing
+            "channel", "Channel", "ch", "Ch", "index", "Index"
         ]
 
         for inst in self.instruments:
@@ -239,6 +256,28 @@ class GraphBlock(QFrame):
         self.graph.getPlotItem().setLabel('left', param.label or param.name, units=param.unit)
         self.graph.getPlotItem().setLabel('bottom', 'Time', units='s')
 
+        # Hook a linked timestamp param if one exists, to update the X-axis label
+        self._unhook_timestamp_param()
+        timestamp_param = self._find_timestamp_param(inst, param)
+        if timestamp_param is not None:
+            ts_original = getattr(timestamp_param, 'update_current_value', None)
+
+            def ts_intercepteur(value=None, _orig=ts_original):
+                if value is not None:
+                    try:
+                        self._latest_timestamp_x = float(value)
+                    except (ValueError, TypeError):
+                        pass
+                if _orig:
+                    try:
+                        return _orig(value)
+                    except Exception:
+                        logger.exception("Error in timestamp callback")
+
+            timestamp_param.update_current_value = ts_intercepteur
+            self._timestamp_hook_param = timestamp_param
+            self._timestamp_original_callback = ts_original
+
         self.apply_theme()
         self.start_graph()
 
@@ -252,7 +291,8 @@ class GraphBlock(QFrame):
             return
 
         idx = self._buf_head % self._buf_size
-        self._buf_x[idx] = time.time() - self.start_time
+        x = self._latest_timestamp_x if self._latest_timestamp_x is not None else time.time() - self.start_time
+        self._buf_x[idx] = x
         self._buf_y[idx] = val
         self._buf_head += 1
         self._buf_count = min(self._buf_count + 1, self._buf_size)
@@ -322,8 +362,21 @@ class GraphBlock(QFrame):
         if self.parent_widget:
             self.parent_widget.remove_graph_block(self)
 
+    def _find_timestamp_param(self, inst, param):
+        for ts_name, related in getattr(inst, '_timestamp_link_map', {}).items():
+            if related is param:
+                return inst.parameters.get(ts_name)
+        return None
+
+    def _unhook_timestamp_param(self):
+        if self._timestamp_hook_param is not None:
+            self._timestamp_hook_param.update_current_value = self._timestamp_original_callback
+            self._timestamp_hook_param = None
+            self._timestamp_original_callback = None
+        self._latest_timestamp_x = None
+
     def _unhook_current_param(self):
-        """Restores the original update_widget function for the previous parameter."""
+        self._unhook_timestamp_param()
         if self.active_hook_param is not None:
             self.active_hook_param.update_current_value = self.active_original_callback
             self.active_hook_param = None

@@ -158,6 +158,15 @@ class ScanWorker(QThread):
                 data[key] = param.current_value
                 if setpoints and key in setpoints:
                     data[f"{key}_setpoint"] = setpoints[key]
+
+        # Inject adjacent timestamp columns for linked timestamp params
+        for inst in self.instruments:
+            for ts_param_name, related_param in getattr(inst, '_timestamp_link_map', {}).items():
+                ts_param = inst.parameters.get(ts_param_name)
+                if ts_param is not None:
+                    ts_key = f"{inst.name}_{related_param.name}__timestamp"
+                    data[ts_key] = ts_param.current_value
+
         return data
 
     @staticmethod

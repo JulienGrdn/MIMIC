@@ -1,9 +1,11 @@
 import logging
 import os
 import socket
+import subprocess
+import sys
 import uuid
 from PyQt6.QtCore    import Qt, QTimer
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QFrame, QPushButton, QMessageBox, QGridLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QFrame, QPushButton, QMessageBox, QGridLayout, QSizePolicy
 from PyQt6.QtGui import QPixmap
 from mimic.assets.csstyle import Style, Palette
 from mimic.assets.theme_manager import ThemeManager
@@ -12,11 +14,12 @@ from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler
 from mimic.assets.instance_state import InstanceState, STATE_MASTER, STATE_SLAVE
 from mimic.assets.os_theme import get_system_theme
 from mimic.widgets.popups import Popups
+import mimic.devices.yaml_plugin as yaml_plugin
+from mimic.logger import LOG_FILE
 
 logger = logging.getLogger(__name__)
 
-ASSETS_DIR   = os.path.join(os.getcwd(), "src", "mimic", "assets")
-MASTER_TOPIC = "MIMICsoftware/Master"
+ASSETS_DIR      = os.path.join(os.getcwd(), "src", "mimic", "assets")
 _CLAIM_DELAY_MS = 500
 
 
@@ -81,7 +84,10 @@ class AboutTab(QWidget):
         self._client_id    = uuid.uuid4().hex[:10]
         self._hostname     = socket.gethostname()
         self._prompt       = f"{self._hostname}@{self._client_id}"
-        self._master_topic = MASTER_TOPIC.format(hostname=self._hostname)
+        _vl = yaml_plugin.VIRTUAL_LAB
+        self._master_topic = (
+            f"MIMICsoftware/{_vl}/Master" if _vl else "MIMICsoftware/Master"
+        )
 
         self._claim_timer = QTimer(self)
         self._claim_timer.setSingleShot(True)
@@ -158,6 +164,11 @@ class AboutTab(QWidget):
         self.lbl_broker.setObjectName("about_value")
         c_conn.body().addLayout(_labeled_row("Broker", self.lbl_broker))
 
+        _vl_display = yaml_plugin.VIRTUAL_LAB or "none"
+        self.lbl_virtual_lab = QLabel(_vl_display)
+        self.lbl_virtual_lab.setObjectName("about_value")
+        c_conn.body().addLayout(_labeled_row("Virtual Lab", self.lbl_virtual_lab))
+
         self.btn_reconnect = QPushButton("Reconnect")
         self.btn_reconnect.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_reconnect.setFixedWidth(button_width)
@@ -211,6 +222,28 @@ class AboutTab(QWidget):
         c_dev.body().addLayout(dev_btn_row)
 
         grid.addWidget(c_dev, 1, 0)
+
+        # Row 2, Col 0 > 1
+        c_logs = _Card("Logs")
+        self._cards.append(c_logs)
+        log_path_text = str(LOG_FILE)
+        self.lbl_log_path = QLabel(log_path_text)
+        self.lbl_log_path.setObjectName("about_value")
+        self.lbl_log_path.setWordWrap(True)
+        c_logs.body().addLayout(_labeled_row("Log file", self.lbl_log_path))
+
+        self.btn_view_logs = QPushButton("View Logs")
+        self.btn_view_logs.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_view_logs.setFixedWidth(button_width)
+        self.btn_view_logs.clicked.connect(self._open_log_file)
+
+        logs_btn_row = QHBoxLayout()
+        logs_btn_row.addStretch()
+        logs_btn_row.addWidget(self.btn_view_logs)
+        c_logs.body().addLayout(logs_btn_row)
+
+        c_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        grid.addWidget(c_logs, 2, 0, 1, 2)
 
         c_app = _Card("Appearance")
         self._cards.append(c_app)
@@ -401,6 +434,18 @@ class AboutTab(QWidget):
             self.btn_reload.setText("Reload Devices")
         ))
 
+    def _open_log_file(self):
+        if not LOG_FILE.exists():
+            logger.warning("Log file not found: %s", LOG_FILE)
+            return
+        path = str(LOG_FILE)
+        if sys.platform == "win32":
+            os.startfile(path)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
+
     def _on_dark_toggled(self, checked: bool):
         if not self._follow_system:
             ThemeManager.set_theme("dark" if checked else "light")
@@ -438,13 +483,16 @@ class AboutTab(QWidget):
 
         val_s = Style.Label.parameter_dark if is_dark else Style.Label.parameter
         self.lbl_broker.setStyleSheet(val_s)
+        self.lbl_virtual_lab.setStyleSheet(val_s)
         self.lbl_master.setStyleSheet(val_s)
 
         footer_color = "#999999" if is_dark else "#555555"
         self.lbl_footer.setStyleSheet(f"font-size: 10px; color: {footer_color};")
 
         btn_s = Style.Button.suggested if hasattr(Style.Button, 'suggested') else ""
-        for btn in (self.btn_reconnect, self.btn_reload, self.btn_take_master):
+        self.lbl_log_path.setStyleSheet(val_s)
+
+        for btn in (self.btn_reconnect, self.btn_reload, self.btn_take_master, self.btn_view_logs):
             btn.setStyleSheet(btn_s)
 
         for card in self._cards:

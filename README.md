@@ -98,73 +98,31 @@ mimic
 
 ---
 
-## Configuration Guide
+## Device Configuration
 
-### Adding a Device
-
-Edit `config/devices_configuration.yaml` — no Python code changes required.
+All instruments are defined in `config/devices_configuration.yaml` — no Python code changes required. The file lists the MQTT broker address, an optional lab-wide topic namespace (`virtual_lab`), and a `devices` list where each entry maps a device's display properties and MQTT topics to UI widgets.
 
 ```yaml
-devices:
-  - id: "dummy_power_supply"
-    name: "Dummy Power Supply"
-    nickname: "DPS"
-    device_cat: "Power Supply"
-    mqtt_base_topic: "powersupply/serial_number"
+broker: "192.168.1.100"
+virtual_lab: "my_lab"
 
+devices:
+  - id: "my_power_supply"
+    name: "Power Supply"
+    nickname: "PSU"
+    device_cat: "Power Supply"
+    mqtt_base_topic: "powersupply/sn42"
     channels:
-      - key: "voltage_ch1"
-        label: "Voltage (Ch1)"
-        description: "Output voltage for Channel 1"
+      - key: "voltage"
+        label: "Voltage"
         type: "float"
-        mqtt_payload_format: "('dict', 'voltage')"
         access: "read_write"
         unit: "V"
-        status_suffix: "voltage/1"
-        command_suffix: "SET/voltage/1"
-
-      - key: "output_state"
-        label: "Output Enable"
-        type: "boolean"
-        access: "read_write"
-        status_suffix: "output/1"
-        command_suffix: "SET/output/1"
-
-      - key: "sep1"
-        type: "ui_sep"          # Visual separator (no MQTT interaction)
-
-      - key: "lock_state"
-        label: "Locked"
-        type: "boolean"
-        access: "read"
-        status_suffix: "lock"
-        special_channel: "('stability', 'self')"
-        passive_toggle_parameters: "['locked','unlocked','rgba(70,120,250,1)','rgba(130,130,130,1)']"
+        status_suffix: "v"
+        command_suffix: "SET/v"
 ```
 
-
-
-
-
-
-## Key Channel Fields
-
-* **`status_suffix` / `command_suffix`**
-  Appended to `mqtt_base_topic` for subscribe / publish
-
-* **`mqtt_payload_format`**
-  Extract a value from a dict or list payload:
-  `"('dict', 'key')"` or `"('list', 0)"`
-
-* **`access`**
-  `read`, `write`, or `read_write` — controls which widgets are shown
-
-* **`special_channel`**
-  `"('stability', 'self')"` marks a boolean as a stability indicator (coloured badge)
-  `"('stability', 'other channel key')"` links this stability boolean to another channel
-
-* **`type: "ui_sep"`**
-  Inserts a visual separator in the device card
+For the full reference — every parameter, all `type` and `access` options, payload format extraction, stability indicators, timestamp coupling, and annotated examples — see the **[Device Configuration Guide](./config/DEVICE_CONFIGURATION_GUIDE.md)**.
 
 ---
 

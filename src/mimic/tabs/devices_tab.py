@@ -48,6 +48,7 @@ class InstrumentFrame(QFrame):
         self._init_header()
         for param in self.instrument.get_all_params():
             if param.ui_type == 'ui_sep': self.layout.addWidget(qframe_line_separator())
+            elif getattr(param, 'coupling_type', None) == 'timestamp': continue
             else:self._add_parameter_row(param)
 
         self._rate_timer = QTimer(self)
