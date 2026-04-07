@@ -16,6 +16,7 @@ from mimic.assets.scan_controller import ScanWorker
 from mimic.assets.icon_utils import CustomIcon
 from mimic.widgets.noscrollcombobox import NSCB
 from mimic.widgets.smaller_toggle import AnimatedToggle
+from mimic.widgets.ui_line_separator import qframe_line_separator
 
 
 SCAN_CONFIG_FILE = os.path.join(os.getcwd(), 'config', 'scan_axes.json')
@@ -40,6 +41,7 @@ class ScanTab(QWidget):
 
         self._init_ui()
         self.populate_params()
+        self._on_combo_update_graph()
         self._load_scan_axes()
 
 
@@ -52,6 +54,7 @@ class ScanTab(QWidget):
 
         h_layout = QHBoxLayout(self.main_frame)
         h_layout.setContentsMargins(10, 10, 10, 10)
+        h_layout.setSpacing(10)
 
         config_container = QFrame()
         self._config_container = config_container
@@ -62,6 +65,7 @@ class ScanTab(QWidget):
         # Axes group
         self.grp_axes = QGroupBox("Scan Axes")
         axes_layout = QVBoxLayout(self.grp_axes)
+        axes_layout.setContentsMargins(0, 0, 0, 0)
 
         self.axes_container = QFrame()
         self.axes_layout = QVBoxLayout(self.axes_container)
@@ -117,6 +121,7 @@ class ScanTab(QWidget):
         # Controls group
         self.grp_controls = QGroupBox("")
         ctrl_layout = QGridLayout(self.grp_controls)
+        ctrl_layout.setContentsMargins(10, 10, 10, 10)
 
         self.btn_start = QPushButton("Start Scan")
         self.btn_start.setStyleSheet(Style.Button.start)
@@ -143,13 +148,14 @@ class ScanTab(QWidget):
         config_layout.addWidget(self.grp_controls)
 
         self.lbl_status = QLabel("Ready")
-        config_layout.addWidget(self.lbl_status)
+        ctrl_layout.addWidget(qframe_line_separator(), 2, 0, 1, 2)
+        ctrl_layout.addWidget(self.lbl_status, 3, 0, 1, 2)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(config_container)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setFixedWidth(340)
+        scroll.setFixedWidth(330)
         self._scroll = scroll
         h_layout.addWidget(scroll)
 
@@ -623,7 +629,7 @@ class ScanTab(QWidget):
         self.grp_settings.setStyleSheet(
             Style.GroupBox.dark if is_dark else Style.GroupBox.light)
         self.grp_controls.setStyleSheet(
-            Style.GroupBox.dark_gray if is_dark else Style.GroupBox.light_gray)
+            Style.GroupBox.dark if is_dark else Style.GroupBox.light)
         self.axes_container.setStyleSheet(
             Style.Frame.container_dark if is_dark else Style.Frame.container_light)
         self.graph_widget.setStyleSheet(

@@ -15,3 +15,19 @@ def qframe_line_separator():
         }
     """)
     return line
+
+def thinner_qframe_line_separator():
+    line = QFrame()
+    line.setFrameShape(QFrame.HLine)
+    line.setFrameShadow(QFrame.Plain)
+    line.setStyleSheet("""
+        QFrame {
+            background-color: rgba(130, 130, 130, 0.2); /* Couleur grise discrète */
+            border: none;
+            max-height: 0px;
+            min-height: 0px;
+            margin-top: 0px;
+            margin-bottom: 1px;
+        }
+    """)
+    return line

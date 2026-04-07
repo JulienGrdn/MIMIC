@@ -2,8 +2,8 @@ import logging
 import sys
 import json
 import os
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QListWidget, QStackedWidget, QLineEdit, QComboBox, QCheckBox, QPushButton, QApplication
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedWidget, QLineEdit, QComboBox, QCheckBox, QPushButton, QApplication
 from PyQt6.QtGui import QColor
 from mimic.assets.csstyle import Style
 from mimic.assets.theme_manager import ThemeManager
@@ -11,6 +11,7 @@ from mimic.tabs.devices_tab import InstrumentPanel
 from mimic.tabs.live_update_tab import LiveUpdateWidget
 from mimic.tabs.scan_tab import ScanTab
 from mimic.tabs.about_tab import AboutTab
+from mimic.widgets.animatedlistbar import AnimatedListBar
 from mimic.widgets.noscrollcombobox import NSCB
 from mimic.widgets.smaller_toggle import AnimatedToggle
 from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler, stop_all_brokers
@@ -32,13 +33,16 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
+        main_layout.setSpacing(1)
 
-        self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(110)
-        self.sidebar.addItems(["Devices", "Live Update", "Scan", "Settings"])
+        self.sidebar = AnimatedListBar([
+            {"label": "Devices",     "icon": "devices"},
+            {"label": "Live Update", "icon": "chart"},
+            {"label": "Scan",        "icon": "scan"},
+            {"label": "Settings",    "icon": "settings"},
+        ])
         self.sidebar.setCurrentRow(0)
-        self.sidebar.currentRowChanged.connect(self.display_page)
+        self.sidebar.current_row_changed.connect(self.display_page)
         main_layout.addWidget(self.sidebar)
 
         self.stack = QStackedWidget()
@@ -147,9 +151,7 @@ class MainWindow(QMainWindow):
         scan_item = self.sidebar.item(2)
         if scan_item:
             if self._scan_unlocked:
-                scan_item.setForeground(
-                    self.sidebar.palette().color(
-                        self.sidebar.palette().ColorRole.Text))
+                scan_item.setData(Qt.ItemDataRole.ForegroundRole, None)
             else:
                 scan_item.setForeground(QColor("#555" if ThemeManager.get_theme() == "dark" else "#bbb"))
                 if self.stack.currentIndex() == 2:
@@ -159,7 +161,7 @@ class MainWindow(QMainWindow):
         theme   = theme or ThemeManager.get_theme()
         is_dark = theme == "dark"
         self.setStyleSheet(Style.Default.dark if is_dark else Style.Default.light)
-        self.sidebar.setStyleSheet(Style.List.dark if is_dark else Style.List.light)
+        self.sidebar.apply_theme()
         self._on_master_state_changed(InstanceState.state)
         for page in (self.devices_panel, self.live_update_page,
                      self.scan_page, self.about_page):
@@ -177,6 +179,8 @@ class MainWindow(QMainWindow):
         for widget in self.findChildren(QCheckBox):
             if widget.objectName():
                 state[widget.objectName()] = widget.isChecked()
+
+        state["sidebar_collapsed"] = self.sidebar._collapsed
 
         try:
             os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
@@ -204,6 +208,8 @@ class MainWindow(QMainWindow):
                     finally:
                         widget.blockSignals(False)
 
+            if state.get("sidebar_collapsed"):
+                self.sidebar.set_collapsed(True)
             if state.get("settings_dark_mode"):
                 ThemeManager.set_theme("dark")
             if state.get("settings_follow_system"):

@@ -250,7 +250,7 @@ class Style:
             QFrame {{
                 background-color: {Palette.L_BG_FRAME_2};
                 border: 0px solid {Palette.L_BORDER};
-                border-radius: 12px;
+                border-radius: 8px;
             }}
         '''
 
@@ -258,7 +258,7 @@ class Style:
             QFrame {{
                 background-color: {Palette.L_BG_FRAME_1};
                 border: none;
-                border-radius: 12px;
+                border-radius: 8px;
             }}
         '''
 
@@ -266,7 +266,7 @@ class Style:
             QFrame {{
                 background-color: {Palette.D_BG_FRAME_2};
                 border: 0px solid {Palette.D_BORDER};
-                border-radius: 12px;
+                border-radius: 8px;
             }}
         '''
 
@@ -274,7 +274,7 @@ class Style:
             QFrame {{
                 background-color: {Palette.D_BG_FRAME_1};
                 border: 0px solid {Palette.D_BORDER};
-                border-radius: 12px;
+                border-radius: 8px;
             }}
             
             
@@ -884,6 +884,7 @@ class Style:
                 border: none;
                 font-size: {Palette.FONT_SIZE};
                 outline: none;
+                border-radius: 0px;
             }}
             QListWidget::item {{
                 height: 36px;
@@ -907,6 +908,7 @@ class Style:
                 border: none;
                 font-size: {Palette.FONT_SIZE};
                 outline: none;
+                border-radius: 0px;
             }}
             QListWidget::item {{
                 height: 36px;
@@ -922,7 +924,7 @@ class Style:
                 background-color: rgba(0, 0, 0, 0.05);
             }}
         """
-        
+
         secondary_light = f"""
             QListWidget {{
                 background-color: {Palette.L_BG_FRAME_2};
@@ -1074,6 +1076,96 @@ class Style:
                 font-family: '{Palette.FONT_MAIN}';
                 font-size: {Palette.FONT_SIZE};
                 padding: 2px;
+            }}
+        """
+
+
+    class AnimatedListBar:
+        container_light = f"""
+            QWidget {{
+                background-color: {Palette.L_BG_FRAME_1};
+                border: none;
+            }}
+        """
+
+        container_dark = f"""
+            QWidget {{
+                background-color: {Palette.D_BG_FRAME_1};
+                border: none;
+            }}
+        """
+        list_light = f"""
+            QListWidget {{
+                background-color:  {Palette.L_BG_FRAME_1};
+                color: {Palette.L_TEXT_MAIN};
+                border: none;
+                font-size: {Palette.FONT_SIZE};
+                outline: none;
+                border-radius: 0px;
+            }}
+            QListWidget::item {{
+                height: 36px;
+                padding-left: 4px;
+                margin: 2px 4px;
+                border-radius: 6px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {Palette.ACCENT_BLUE};
+                color: #FFFFFF;
+            }}
+            QListWidget::item:hover:!selected {{
+                background-color: rgba(255, 255, 255, 0.07);
+            }}
+        """
+        list_dark = f"""
+            QListWidget {{
+                background-color:  {Palette.D_BG_FRAME_1};
+                color: {Palette.D_TEXT_MAIN};
+                border: none;
+                font-size: {Palette.FONT_SIZE};
+                outline: none;
+                border-radius: 0px;
+            }}
+            QListWidget::item {{
+                height: 36px;
+                padding-left: 4px;
+                margin: 2px 4px;
+                border-radius: 6px;
+            }}
+            QListWidget::item:selected {{
+                background-color: {Palette.ACCENT_BLUE};
+                color: #FFFFFF;
+            }}
+            QListWidget::item:hover:!selected {{
+                background-color: rgba(255, 255, 255, 0.07);
+            }}
+        """
+        toggle_light = f"""
+            QPushButton {{
+                background-color: {Palette.L_BG_FRAME_1};
+                border: none;
+                border-radius: 0px;
+                padding: 8px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(0, 0, 0, 0.06);
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(0, 0, 0, 0.12);
+            }}
+        """
+        toggle_dark = f"""
+            QPushButton {{
+                background-color: {Palette.D_BG_FRAME_1};
+                border: none;
+                border-radius: 0px;
+                padding: 8px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.07);
+            }}
+            QPushButton:pressed {{
+                background-color: rgba(255, 255, 255, 0.13);
             }}
         """
 
