@@ -7,13 +7,14 @@ logger = logging.getLogger(__name__)
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTextEdit, QFrame, QGridLayout, QGroupBox,
-    QScrollArea, QComboBox, QDialog
+    QComboBox, QDialog
 )
-from mimic.widgets.qtgraph import Graph
+from mimic.widgets.qtgraph import GraphWithToolbar
 from mimic.assets.csstyle import Style
 from mimic.assets.theme_manager import ThemeManager
 from mimic.assets.scan_controller import ScanWorker
 from mimic.assets.icon_utils import CustomIcon
+from mimic.widgets.custom_scroll_area import CustomScrollArea
 from mimic.widgets.noscrollcombobox import NSCB
 from mimic.widgets.smaller_toggle import AnimatedToggle
 from mimic.widgets.ui_line_separator import qframe_line_separator
@@ -44,7 +45,6 @@ class ScanTab(QWidget):
         self._on_combo_update_graph()
         self._load_scan_axes()
 
-
     def _init_ui(self):
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(0, 0, 0, 0)
@@ -60,7 +60,7 @@ class ScanTab(QWidget):
         self._config_container = config_container
         config_layout = QVBoxLayout(config_container)
         config_layout.setContentsMargins(0, 0, 0, 0)
-        config_container.setMinimumWidth(320)
+        config_container.setMinimumWidth(280)
 
         # Axes group
         self.grp_axes = QGroupBox("Scan Axes")
@@ -151,11 +151,13 @@ class ScanTab(QWidget):
         ctrl_layout.addWidget(qframe_line_separator(), 2, 0, 1, 2)
         ctrl_layout.addWidget(self.lbl_status, 3, 0, 1, 2)
 
-        scroll = QScrollArea()
+        scroll = CustomScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(config_container)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setFixedWidth(330)
+        # scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setMinimumWidth(300)
+        scroll.setMaximumWidth(360)
+        # scroll.setFixedWidth(360)
         self._scroll = scroll
         h_layout.addWidget(scroll)
 
@@ -175,8 +177,11 @@ class ScanTab(QWidget):
         axis_sel.addWidget(self.combo_y)
         graph_layout.addLayout(axis_sel)
 
-        self.graph = Graph()
-        graph_layout.addWidget(self.graph)
+        self._graph_container = GraphWithToolbar()
+        self.graph = self._graph_container.graph
+        self.style_combo = self._graph_container.style_combo
+        self.style_combo.setObjectName("scan_plot_style")
+        graph_layout.addWidget(self._graph_container)
         h_layout.addWidget(self.graph_widget)
 
         self.combo_x.currentIndexChanged.connect(self._on_combo_update_graph)
@@ -235,7 +240,7 @@ class ScanTab(QWidget):
 
         line1 = QHBoxLayout()
         combo = NSCB()
-        combo.setFixedWidth(130)
+        #combo.setFixedWidth(130)
         self._fill_param_combo(combo)
 
         steps = QLineEdit("10")
@@ -256,9 +261,9 @@ class ScanTab(QWidget):
 
         line2 = QHBoxLayout()
         start = QLineEdit("")
-        start.setFixedWidth(85)
+        #start.setFixedWidth(85)
         stop  = QLineEdit("")
-        stop.setFixedWidth(85)
+        #stop.setFixedWidth(85)
         line2.addWidget(QLabel("Start:"))
         line2.addWidget(start)
         line2.addWidget(QLabel("Stop:"))
@@ -321,9 +326,8 @@ class ScanTab(QWidget):
         if not device_groups:
             main_layout.addWidget(QLabel("No stability channels configured."))
         else:
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
-            scroll.setFrameShape(QFrame.NoFrame)
+            scroll = CustomScrollArea()
+            scroll.apply_theme(is_dark)
 
             container = QWidget()
             container_layout = QVBoxLayout(container)
@@ -643,11 +647,12 @@ class ScanTab(QWidget):
 
         self.lbl_status.setStyleSheet(
             Style.Label.title_dark if is_dark else Style.Label.title_light)
-        self._scroll.setStyleSheet(Style.Scroll.combined)
+        self._scroll.apply_theme(is_dark)
 
         cb_style = Style.ComboBox.dark if is_dark else Style.ComboBox.light
         self.combo_x.setStyleSheet(cb_style)
         self.combo_y.setStyleSheet(cb_style)
+        self.style_combo.setStyleSheet(cb_style)
 
         for row in self.axis_widgets:
             self._apply_theme_to_axis_row(*row)

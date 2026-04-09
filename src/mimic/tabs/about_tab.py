@@ -4,8 +4,9 @@ import socket
 import subprocess
 import sys
 import uuid
+from pathlib import Path
 from PyQt6.QtCore    import Qt, QTimer
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QLabel, QFrame, QPushButton, QMessageBox, QGridLayout, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QPushButton, QGridLayout, QSizePolicy
 from PyQt6.QtGui import QPixmap
 from mimic.assets.csstyle import Style, Palette
 from mimic.assets.theme_manager import ThemeManager
@@ -14,12 +15,14 @@ from mimic.devices.frontend.mqtt_broker_registry import get_shared_handler
 from mimic.assets.instance_state import InstanceState, STATE_MASTER, STATE_SLAVE
 from mimic.assets.os_theme import get_system_theme
 from mimic.widgets.popups import Popups
+from mimic.widgets.custom_scroll_area import CustomScrollArea
 import mimic.devices.yaml_plugin as yaml_plugin
 from mimic.logger import LOG_FILE
 
 logger = logging.getLogger(__name__)
 
-ASSETS_DIR      = os.path.join(os.getcwd(), "src", "mimic", "assets")
+ASSETS_DIR          = os.path.join(os.getcwd(), "src", "mimic", "assets")
+DEVICES_CONFIG_FILE = Path(__file__).parent.parent.parent.parent / "config" / "devices_configuration.yaml"
 _CLAIM_DELAY_MS = 500
 
 
@@ -28,14 +31,13 @@ class _Card(QFrame):
         super().__init__(parent)
         self.setObjectName("about_card")
         self._vbox = QVBoxLayout(self)
-        self._vbox.setContentsMargins(16, 14, 16, 14)
+        self._vbox.setContentsMargins(18, 12, 18, 12)
         self._vbox.setSpacing(1)
 
         if title:
             self._title_lbl = QLabel(title.upper())
             self._title_lbl.setObjectName("card_section_title")
             self._vbox.addWidget(self._title_lbl)
-            self._vbox.addWidget(_hline())
 
     def body(self) -> QVBoxLayout:
         return self._vbox
@@ -50,12 +52,6 @@ class _Card(QFrame):
                 f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;"
             )
 
-
-def _hline() -> QFrame:
-    f = QFrame()
-    f.setFrameShape(QFrame.Shape.HLine)
-    f.setFrameShadow(QFrame.Shadow.Sunken)
-    return f
 
 
 def _labeled_row(label_text: str, right: QWidget) -> QHBoxLayout:
@@ -108,20 +104,20 @@ class AboutTab(QWidget):
 
     def _init_ui(self):
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(10, 10, 10, 10)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet(Style.Scroll.transparent)
-        outer.addWidget(scroll)
+        self.scroll = CustomScrollArea()
+        # scroll.setWidgetResizable(True)
+        # scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # scroll.setStyleSheet(Style.Scroll.transparent)
+        outer.addWidget(self.scroll)
 
         content = QWidget()
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(24, 24, 24, 24)
-        cl.setSpacing(14)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(10)
         cl.setAlignment(Qt.AlignmentFlag.AlignTop)
-        scroll.setWidget(content)
+        self.scroll.setWidget(content)
 
         c_info = _Card()
         self._cards.append(c_info)
@@ -134,7 +130,7 @@ class AboutTab(QWidget):
         accent = "#7BD6C4"
         self.lbl_desc = QLabel(
             f"<p style='text-align:center; font-family:Segoe UI,sans-serif; "
-            f"font-size:14pt; margin:0;'>"
+            f"font-size:12pt; margin:0;'>"
             f"<b style='color:{accent}'>M</b>QTT&nbsp;"
             f"<b style='color:{accent}'>I</b>nterface for&nbsp;"
             f"<b style='color:{accent}'>M</b>odular&nbsp;"
@@ -153,7 +149,7 @@ class AboutTab(QWidget):
         cl.addWidget(c_info)
 
         grid = QGridLayout()
-        grid.setSpacing(14)
+        grid.setSpacing(10)
 
         button_width = 150
 
@@ -187,7 +183,7 @@ class AboutTab(QWidget):
         lbl_host = QLabel(self._hostname)
         lbl_host.setObjectName("about_value")
         c_inst.body().addLayout(_labeled_row("Host", lbl_host))
-        self.lbl_master = QLabel("connecting…")
+        self.lbl_master = QLabel("-")
         self.lbl_master.setObjectName("about_value")
         c_inst.body().addLayout(_labeled_row("Role", self.lbl_master))
 
@@ -211,12 +207,18 @@ class AboutTab(QWidget):
         self.lbl_instr = QLabel(f"Config file loaded with {str(self.num_instr)} devices.")
         c_dev.body().addLayout(_labeled_row("Info", self.lbl_instr))
 
+        self.btn_open_config = QPushButton("Edit Config File")
+        self.btn_open_config.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_open_config.setFixedWidth(button_width)
+        self.btn_open_config.clicked.connect(self._open_config_file)
+
         self.btn_reload = QPushButton("Reload Devices")
         self.btn_reload.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_reload.setFixedWidth(button_width)
         self.btn_reload.clicked.connect(self._do_reload)
 
         dev_btn_row = QHBoxLayout()
+        dev_btn_row.addWidget(self.btn_open_config)
         dev_btn_row.addStretch()
         dev_btn_row.addWidget(self.btn_reload)
         c_dev.body().addLayout(dev_btn_row)
@@ -389,7 +391,7 @@ class AboutTab(QWidget):
             self.lbl_master.setText(
                 "<div style='text-align:left;'>"
                 "<b style='color:#e67e22;'>LISTENER</b>"
-                "<span style='font-size:9pt; color:#888;'>&nbsp;&nbsp;read-only</span>"
+                f"<span style='font-size:9pt; color:#888;'>&nbsp;&nbsp;{self._client_id} - read-only</span>"
                 "</div>"
             )
             self.btn_take_master.setVisible(True)
@@ -433,6 +435,18 @@ class AboutTab(QWidget):
             self.btn_reload.setEnabled(True),
             self.btn_reload.setText("Reload Devices")
         ))
+
+    def _open_config_file(self):
+        if not DEVICES_CONFIG_FILE.exists():
+            logger.warning("Config file not found: %s", DEVICES_CONFIG_FILE)
+            return
+        path = str(DEVICES_CONFIG_FILE)
+        if sys.platform == "win32":
+            os.startfile(path)
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", path])
+        else:
+            subprocess.Popen(["xdg-open", path])
 
     def _open_log_file(self):
         if not LOG_FILE.exists():
@@ -492,7 +506,9 @@ class AboutTab(QWidget):
         btn_s = Style.Button.suggested if hasattr(Style.Button, 'suggested') else ""
         self.lbl_log_path.setStyleSheet(val_s)
 
-        for btn in (self.btn_reconnect, self.btn_reload, self.btn_take_master, self.btn_view_logs):
+        self.scroll.apply_theme(is_dark)
+
+        for btn in (self.btn_reconnect, self.btn_reload, self.btn_take_master, self.btn_view_logs, self.btn_open_config):
             btn.setStyleSheet(btn_s)
 
         for card in self._cards:

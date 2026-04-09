@@ -12,7 +12,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
     QListWidget,
@@ -24,6 +23,7 @@ from mimic.assets.theme_manager import ThemeManager
 from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
 from mimic.widgets.smaller_toggle import AnimatedToggle
 from mimic.widgets.flow_layout import FlowLayout
+from mimic.widgets.custom_scroll_area import CustomScrollArea
 from mimic.assets.instance_state import InstanceState
 from mimic.widgets.popups import Popups
 from mimic.widgets.ui_line_separator import qframe_line_separator
@@ -310,10 +310,10 @@ class InstrumentPanel(QWidget):
             for inst in instruments:
                 frame = InstrumentFrame(inst)
                 flow_layout.addWidget(frame)
-            scroll = QScrollArea()
-            scroll.setWidgetResizable(True)
+            scroll = CustomScrollArea()
+            # scroll.setWidgetResizable(True)
             scroll.setWidget(page_widget)
-            scroll.setFrameShape(QFrame.Shape.NoFrame)
+            # scroll.setFrameShape(QFrame.Shape.NoFrame)
 
             self.content_stack.addWidget(scroll)
             self.category_pages[category_name] = scroll
@@ -364,10 +364,10 @@ class InstrumentPanel(QWidget):
             frame = InstrumentFrame(inst)
             grid_layout.addWidget(frame)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
+        scroll = CustomScrollArea()
+        # scroll.setWidgetResizable(True)
         scroll.setWidget(page_widget)
-        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # scroll.setFrameShape(QFrame.Shape.NoFrame)
 
         self.content_stack.addWidget(scroll)
         self.category_pages["All Devices"] = scroll
@@ -400,7 +400,7 @@ class InstrumentPanel(QWidget):
             self.content_stack.setStyleSheet(Style.Frame.content_light)
 
         for scroll in self.category_pages.values():
-            scroll.setStyleSheet(Style.Scroll.combined)
+            scroll.apply_theme(is_dark)
 
             page_widget = scroll.widget()
             if page_widget and page_widget.layout():

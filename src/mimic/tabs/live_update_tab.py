@@ -12,14 +12,14 @@ from PyQt6.QtWidgets import (
     QFrame,
     QPushButton,
     QLabel,
-    QScrollArea,
     QLineEdit
 )
 from mimic.assets.csstyle import Style, HTMLValueFormatter
 from mimic.assets.theme_manager import ThemeManager
 from mimic.devices.frontend.instrument_base import InstrumentBase, Parameter
-from mimic.widgets.qtgraph import Graph
+from mimic.widgets.qtgraph import GraphWithToolbar
 from mimic.widgets.noscrollcombobox import NSCB
+from mimic.widgets.custom_scroll_area import CustomScrollArea
 import math
 
 _LOG_MS_MIN = math.log(16)      # 60 Hz
@@ -137,13 +137,12 @@ class GraphBlock(QFrame):
 
         layout.addWidget(controls_frame)
 
-        # Graph
-        self.graph = Graph()
-        #self.graph.setFixedHeight(300)
-        #self.graph.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._graph_container = GraphWithToolbar()
+        self.graph = self._graph_container.graph
         self.graph.line_curve.setDownsampling(auto=True, method='peak')
         self.graph.line_curve.setClipToView(True)
-        layout.addWidget(self.graph)
+        self.style_combo = self._graph_container.style_combo
+        layout.addWidget(self._graph_container)
 
         self.apply_theme()
 
@@ -391,12 +390,14 @@ class GraphBlock(QFrame):
         if is_dark:
             self.setStyleSheet(Style.Frame.container_dark)
             self.combo.setStyleSheet(Style.ComboBox.dark)
+            self.style_combo.setStyleSheet(Style.ComboBox.dark)
             # self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_dark)
             self.edit_window.setStyleSheet(Style.Input.line_edit_dark)
             self.btn_delete.setStyleSheet(Style.Button.simple_dark)
         else:
             self.setStyleSheet(Style.Frame.container_light)
             self.combo.setStyleSheet(Style.ComboBox.light)
+            self.style_combo.setStyleSheet(Style.ComboBox.light)
             # self.lbl_current_value.setStyleSheet(Style.Label.live_value_big_light)
             self.edit_window.setStyleSheet(Style.Input.line_edit_light)
             self.btn_delete.setStyleSheet(Style.Button.simple_light)
@@ -415,16 +416,15 @@ class LiveUpdateWidget(QWidget):
         root_layout.addWidget(self.main_frame)
 
         self.layout = QVBoxLayout(self.main_frame)
-        self.layout.setContentsMargins(0, 0, 10, 10)
+        self.layout.setContentsMargins(10, 10, 10, 10)
 
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setStyleSheet(Style.Scroll.transparent)
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area = CustomScrollArea()
 
         self.scroll_content = QWidget()
         self.scroll_layout = QVBoxLayout(self.scroll_content)
         self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.scroll_layout.setContentsMargins(0, 0, 0, 0)
+        self.scroll_layout.setSpacing(10)
 
         self.scroll_area.setWidget(self.scroll_content)
 
@@ -464,6 +464,8 @@ class LiveUpdateWidget(QWidget):
              self.main_frame.setStyleSheet(Style.Frame.content_dark)
         else:
              self.main_frame.setStyleSheet(Style.Frame.content_light)
+
+        self.scroll_area.apply_theme(is_dark)
 
         for i in range(self.scroll_layout.count()):
             item = self.scroll_layout.itemAt(i)
