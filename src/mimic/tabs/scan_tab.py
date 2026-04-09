@@ -21,7 +21,7 @@ from mimic.widgets.ui_line_separator import qframe_line_separator
 
 
 SCAN_CONFIG_FILE = os.path.join(os.getcwd(), 'config', 'scan_axes.json')
-
+_LEFT_LAYOUT_WIDTH = 270
 
 class ScanTab(QWidget):
     def __init__(self, loaded_instruments=None):
@@ -32,7 +32,7 @@ class ScanTab(QWidget):
         self.scan_id: str | None = None
 
         self._loading_config = False
-        self.axis_widgets: list[tuple] = []   # (combo, start, stop, steps, frame)
+        self.axis_widgets: list[tuple] = []   # (combo, start, stop, steps, frame, sep)
 
         self._scan_params: list[tuple] = []
         self._scan_params_long: list[tuple] = []# writable params → axis combos
@@ -60,16 +60,22 @@ class ScanTab(QWidget):
         self._config_container = config_container
         config_layout = QVBoxLayout(config_container)
         config_layout.setContentsMargins(0, 0, 0, 0)
-        config_container.setMinimumWidth(280)
+        config_layout.setSpacing(10)
+        config_container.setMinimumWidth(_LEFT_LAYOUT_WIDTH - 20)
 
         # Axes group
-        self.grp_axes = QGroupBox("Scan Axes")
+        self.grp_axes = QFrame()
         axes_layout = QVBoxLayout(self.grp_axes)
-        axes_layout.setContentsMargins(0, 0, 0, 0)
+        axes_layout.setContentsMargins(10, 10, 10, 10)
+        axes_layout.setSpacing(10)
+
+        self.lbl_axes_title = QLabel("SCAN AXES")
+        axes_layout.addWidget(self.lbl_axes_title)
 
         self.axes_container = QFrame()
         self.axes_layout = QVBoxLayout(self.axes_container)
         self.axes_layout.setContentsMargins(0, 0, 0, 0)
+        self.axes_layout.setSpacing(6)
         axes_layout.addWidget(self.axes_container)
 
         btn_row = QHBoxLayout()
@@ -78,13 +84,17 @@ class ScanTab(QWidget):
         btn_add.setStyleSheet(Style.Button.suggested)
         btn_add.clicked.connect(self.add_axis_row)
         btn_row.addWidget(btn_add)
-        axes_layout.addLayout(btn_row)
         config_layout.addWidget(self.grp_axes)
+        config_layout.addLayout(btn_row)
 
         # Settings group
-        self.grp_settings = QGroupBox("Settings")
+        self.grp_settings = QFrame()
         settings_layout = QVBoxLayout(self.grp_settings)
-        settings_layout.setContentsMargins(15, 15, 15, 15)
+        settings_layout.setContentsMargins(10, 10, 10, 10)
+        settings_layout.setSpacing(10)
+
+        self.lbl_settings_title = QLabel("SCAN SETTINGS")
+        settings_layout.addWidget(self.lbl_settings_title)
 
         delay_row = QHBoxLayout()
         delay_row.addWidget(QLabel("Delay between points (s):"))
@@ -112,7 +122,8 @@ class ScanTab(QWidget):
         settings_layout.addWidget(QLabel("Comments:"))
         self.txt_comments = QTextEdit()
         self.txt_comments.setObjectName("scan_comments")
-        self.txt_comments.setFixedHeight(70)
+        self.txt_comments.setMinimumHeight(80)
+        self.txt_comments.setMaximumHeight(140)
         settings_layout.addWidget(self.txt_comments)
         config_layout.addWidget(self.grp_settings)
 
@@ -122,6 +133,7 @@ class ScanTab(QWidget):
         self.grp_controls = QGroupBox("")
         ctrl_layout = QGridLayout(self.grp_controls)
         ctrl_layout.setContentsMargins(10, 10, 10, 10)
+        ctrl_layout.setSpacing(10)
 
         self.btn_start = QPushButton("Start Scan")
         self.btn_start.setStyleSheet(Style.Button.start)
@@ -141,10 +153,10 @@ class ScanTab(QWidget):
         self.btn_save.setStyleSheet(Style.Button.disabled)
         self.btn_save.setEnabled(False)
 
-        ctrl_layout.addWidget(self.btn_start, 0, 0)
-        ctrl_layout.addWidget(self.btn_pause, 0, 1)
+        ctrl_layout.addWidget(self.btn_start, 0, 0, 1, 2)
+        ctrl_layout.addWidget(self.btn_pause, 1, 1)
         ctrl_layout.addWidget(self.btn_abort, 1, 0)
-        ctrl_layout.addWidget(self.btn_save,  1, 1)
+        # ctrl_layout.addWidget(self.btn_save,  1, 1)
         config_layout.addWidget(self.grp_controls)
 
         self.lbl_status = QLabel("Ready")
@@ -155,7 +167,7 @@ class ScanTab(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setWidget(config_container)
         # scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setMinimumWidth(300)
+        scroll.setMinimumWidth(_LEFT_LAYOUT_WIDTH)
         scroll.setMaximumWidth(360)
         # scroll.setFixedWidth(360)
         self._scroll = scroll
@@ -235,7 +247,7 @@ class ScanTab(QWidget):
     def add_axis_row(self):
         frame = QFrame()
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
 
         line1 = QHBoxLayout()
@@ -272,9 +284,13 @@ class ScanTab(QWidget):
 
         layout.addLayout(line1)
         layout.addLayout(line2)
+        sep = None
+        if self.axis_widgets:
+            sep = qframe_line_separator()
+            self.axes_layout.addWidget(sep)
         self.axes_layout.addWidget(frame)
 
-        entry = (combo, start, stop, steps, frame)
+        entry = (combo, start, stop, steps, frame, sep)
         self.axis_widgets.append(entry)
 
 
@@ -285,6 +301,7 @@ class ScanTab(QWidget):
         steps.textChanged.connect(self._update_estimated_time)
 
         self._apply_theme_to_axis_row(*entry)
+        self._update_estimated_time()
         return entry
 
     def _open_wait_conditions_dialog(self):
@@ -380,8 +397,21 @@ class ScanTab(QWidget):
         dialog.exec()
 
     def remove_axis_row(self, frame):
-        self.axis_widgets = [r for r in self.axis_widgets if r[4] is not frame]
+        idx = next((i for i, r in enumerate(self.axis_widgets) if r[4] is frame), None)
+        if idx is None:
+            return
+        sep = self.axis_widgets[idx][5]
+        # Removing the first row: strip the separator from the new first row instead
+        if idx == 0 and len(self.axis_widgets) > 1:
+            next_entry = self.axis_widgets[1]
+            if next_entry[5]:
+                next_entry[5].deleteLater()
+            self.axis_widgets[1] = (*next_entry[:5], None)
+            sep = None  # first row has no sep of its own
+        if sep:
+            sep.deleteLater()
         frame.deleteLater()
+        self.axis_widgets = [r for r in self.axis_widgets if r[4] is not frame]
         self._save_scan_axes()
         self._update_estimated_time()
 
@@ -396,7 +426,7 @@ class ScanTab(QWidget):
                 'stop':   stop.text(),
                 'steps':  steps.text()
             }
-            for combo, start, stop, steps, _ in self.axis_widgets
+            for combo, start, stop, steps, *_ in self.axis_widgets
         ]
 
         config_data = {
@@ -434,7 +464,7 @@ class ScanTab(QWidget):
                 self.wait_conditions = data.get('wait_conditions', {})
 
             for axis in axes_data:
-                combo, start, stop, steps, _ = self.add_axis_row()
+                combo, start, stop, steps, *_ = self.add_axis_row()
                 if 'param_index' in axis and axis['param_index'] < combo.count():
                     combo.setCurrentIndex(axis['param_index'])
                 start.setText(str(axis.get('start', '')))
@@ -452,7 +482,7 @@ class ScanTab(QWidget):
 
     def _start_scan(self):
         axes_config = []
-        for combo, start, stop, steps, _ in self.axis_widgets:
+        for combo, start, stop, steps, *_ in self.axis_widgets:
             param = combo.currentData()
             if not param:
                 continue
@@ -538,7 +568,7 @@ class ScanTab(QWidget):
             return
 
         total_points = 1
-        for _, _start, _stop, steps_edit, _ in self.axis_widgets:
+        for _, _start, _stop, steps_edit, *_ in self.axis_widgets:
             try:
                 n = max(1, int(steps_edit.text()))
             except ValueError:
@@ -623,15 +653,22 @@ class ScanTab(QWidget):
 
     def apply_theme(self):
         is_dark = ThemeManager.get_theme() == "dark"
+        color = "#ffe" if is_dark else "#445"
 
         self.main_frame.setStyleSheet(
             Style.Frame.content_dark if is_dark else Style.Frame.content_light)
         self._config_container.setStyleSheet(
             Style.Frame.content_dark if is_dark else Style.Frame.content_light)
         self.grp_axes.setStyleSheet(
-            Style.GroupBox.dark_gray if is_dark else Style.GroupBox.light_gray)
+            Style.Frame.container_dark if is_dark else Style.Frame.container_light)
+        self.lbl_axes_title.setStyleSheet(
+            f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;"
+        )
         self.grp_settings.setStyleSheet(
-            Style.GroupBox.dark if is_dark else Style.GroupBox.light)
+            Style.Frame.container_dark if is_dark else Style.Frame.container_light)
+        self.lbl_settings_title.setStyleSheet(
+            f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;"
+        )
         self.grp_controls.setStyleSheet(
             Style.GroupBox.dark if is_dark else Style.GroupBox.light)
         self.axes_container.setStyleSheet(
@@ -657,7 +694,7 @@ class ScanTab(QWidget):
         for row in self.axis_widgets:
             self._apply_theme_to_axis_row(*row)
 
-    def _apply_theme_to_axis_row(self, combo, start, stop, steps, frame):
+    def _apply_theme_to_axis_row(self, combo, start, stop, steps, frame, sep=None):
         is_dark = ThemeManager.get_theme() == "dark"
         frame.setStyleSheet(
             Style.Frame.container_dark if is_dark else Style.Frame.container_light)

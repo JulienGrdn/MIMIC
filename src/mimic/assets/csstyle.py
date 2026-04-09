@@ -4,7 +4,7 @@ class Palette:
     # Fonts - Adwaita prefers Cantarell or Inter
     FONT_MAIN = "Cantarell, Inter, Segoe UI, sans-serif"
     FONT_SIZE = "11pt"     # standard body text
-    FONT_SIZE_L = "13pt"   # headers
+    FONT_SIZE_L = "14pt"   # headers
     
     # --- Adwaita Light Theme Palette ---
     L_BG_MAIN       = "#F2F2F2"   # Adwaita Window Background
@@ -19,7 +19,7 @@ class Palette:
     D_BG_MAIN       = "#383838"   # Adwaita Dark Window Background
     D_BG_FRAME_1    = "#292929"   # Cards / Content Views (Lighter than BG)
     D_BG_FRAME_2    = "#383838"   # Secondary backgrounds
-    D_TEXT_MAIN     = "#FFFFFF"
+    D_TEXT_MAIN     = "#efefdf"
     D_TEXT_SEC      = "#d9d9d9"
     D_BORDER        = "#1B1B1B"   # Dark divider
     D_BORDER_FOCUS  = "#3584E4"   # Focus Ring Blue

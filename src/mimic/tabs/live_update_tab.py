@@ -75,10 +75,11 @@ class GraphBlock(QFrame):
 
         controls_frame = QFrame()
         controls_frame.setFixedWidth(200)
+        controls_frame.setMinimumHeight(280)
         controls_layout = QVBoxLayout(controls_frame)
         controls_layout.setContentsMargins(0, 0, 0, 0)
 
-        controls_layout.addWidget(QLabel("Sensor Parameter:"))
+        # controls_layout.addWidget(QLabel("Sensor Parameter:"))
         self.combo = NSCB()
         self.combo.addItem("Select Parameter...")
         self._populate_combo()

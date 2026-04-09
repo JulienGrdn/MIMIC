@@ -24,10 +24,10 @@ class Toggle(QCheckBox):
         super().__init__(parent)
 
         self._bar_brush = QBrush(bar_color)
-        self._bar_checked_brush = QBrush(QColor(checked_color).lighter())
+        self._bar_checked_brush = QBrush(QColor(checked_color))
 
         self._handle_brush = QBrush(handle_color)
-        self._handle_checked_brush = QBrush(QColor(checked_color))
+        self._handle_checked_brush = QBrush(QColor(handle_color))
 
         self.setContentsMargins(4, 0, 4, 0)
         self._handle_position = 0
@@ -154,7 +154,7 @@ class AnimatedToggle(Toggle):
     def paintEvent(self, e: QPaintEvent):
 
         contRect = self.contentsRect()
-        handleRadius = round(0.24 * contRect.height())
+        handleRadius = round(0.19 * contRect.height())
 
         p = QPainter(self)
         p.setRenderHint(QPainter.Antialiasing)
@@ -185,6 +185,7 @@ class AnimatedToggle(Toggle):
         if self.isChecked():
             p.setBrush(self._bar_checked_brush)
             p.drawRoundedRect(barRect, rounding, rounding)
+            p.setPen(self._light_grey_pen)
             p.setBrush(self._handle_checked_brush)
 
         else:

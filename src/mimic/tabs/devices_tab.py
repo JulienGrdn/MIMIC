@@ -58,7 +58,7 @@ class InstrumentFrame(QFrame):
         self.apply_theme()
 
     def _init_header(self):
-        title = QLabel(self.instrument.name)
+        title = QLabel(self.instrument.name.upper())
         title.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.styled_widgets.append((title, "Label.title"))
         self.layout.addWidget(title)
@@ -78,16 +78,16 @@ class InstrumentFrame(QFrame):
             if param.label is not None:
                 title_lbl = QLabel(f"{param.label}")
                 title_lbl.setObjectName(f"title_{id(param)}")
-                self.styled_widgets.append((title_lbl, "Label.channel_title"))
+                self.styled_widgets.append((title_lbl, "Label.readonly"))
                 self.layout.addWidget(title_lbl)
 
             if param.param_type == 'bool':
-                value_widget = QLabel("—")
+                value_widget = QLabel("_")
                 if hasattr(param, 'update_readout'):
                     param.update_readout = lambda val: value_widget.setText("ON" if val else "OFF")
                 style_key = "Label.parameter"
             else:
-                value_widget = QLabel("—")
+                value_widget = QLabel("_")
                 if hasattr(param, 'update_readout'):
                     param.update_readout = value_widget.setText
                 if hasattr(param, 'update_readout_style'):
@@ -128,7 +128,7 @@ class InstrumentFrame(QFrame):
         self.layout.addLayout(row_layout)
 
         if param.param_type != "bool" and "read" in param._access:
-            readout_label = QLabel("--")
+            readout_label = QLabel("_")
             style_key = "Label.frequency_big" if param.ui_type == 'wm_freq' else "Label.parameter"
             self.styled_widgets.append((readout_label, style_key))
 
@@ -234,9 +234,9 @@ class InstrumentFrame(QFrame):
             self.setStyleSheet(Style.Frame.container_light)
 
         for widget, style_key in self.styled_widgets:
-            if style_key == "Label.title":
-                widget.setStyleSheet(Style.Label.title_dark if is_dark else Style.Label.title_light)
-            elif style_key == "Label.parameter":
+            # if style_key == "Label.title":
+            #     widget.setStyleSheet(Style.Label.title_dark if is_dark else Style.Label.title_light)
+            if style_key == "Label.parameter":
                 widget.setStyleSheet(Style.Label.parameter_dark if is_dark else Style.Label.parameter)
             elif style_key == "Label.frequency_big":
                 widget.setStyleSheet(Style.Label.frequency_big_dark if is_dark else Style.Label.frequency_big)
@@ -245,10 +245,9 @@ class InstrumentFrame(QFrame):
             elif style_key == "Label.rate":
                 color = "#555" if is_dark else "#aaa"
                 widget.setStyleSheet(f"font-size: 8pt; color: {color}; font-style: italic;")
-            elif style_key == "Label.channel_title":
-                color = "#aaa" if is_dark else "#888"
-                widget.setStyleSheet(
-                    f"font-size: 8pt; color: {color}; letter-spacing: 0.5px; font-weight: bold; text-transform: uppercase;")
+            elif style_key == "Label.title":
+                color = "#ffe" if is_dark else "#445"
+                widget.setStyleSheet(f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;")
 
 
 class InstrumentPanel(QWidget):

@@ -47,7 +47,7 @@ class _Card(QFrame):
             Style.Frame.container_dark if is_dark else Style.Frame.container_light
         )
         if hasattr(self, '_title_lbl'):
-            color = "#888" if is_dark else "#aaa"
+            color = "#ffe" if is_dark else "#445"
             self._title_lbl.setStyleSheet(
                 f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;"
             )
