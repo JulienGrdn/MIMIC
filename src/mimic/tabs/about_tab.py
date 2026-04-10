@@ -226,13 +226,15 @@ class AboutTab(QWidget):
         grid.addWidget(c_dev, 1, 0)
 
         # Row 2, Col 0 > 1
-        c_logs = _Card("Logs")
-        self._cards.append(c_logs)
-        log_path_text = str(LOG_FILE)
-        self.lbl_log_path = QLabel(log_path_text)
-        self.lbl_log_path.setObjectName("about_value")
-        self.lbl_log_path.setWordWrap(True)
-        c_logs.body().addLayout(_labeled_row("Log file", self.lbl_log_path))
+        # c_logs = _Card("Logs")
+        # self._cards.append(c_logs)
+        # log_path_text = str(LOG_FILE)
+        # self.lbl_log_path = QLabel(log_path_text)
+        # self.lbl_log_path.setObjectName("about_value")
+        # self.lbl_log_path.setWordWrap(True)
+        # c_logs.body().addLayout(_labeled_row("Log file", self.lbl_log_path))
+
+        f_log = QFrame()
 
         self.btn_view_logs = QPushButton("View Logs")
         self.btn_view_logs.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -242,10 +244,10 @@ class AboutTab(QWidget):
         logs_btn_row = QHBoxLayout()
         logs_btn_row.addStretch()
         logs_btn_row.addWidget(self.btn_view_logs)
-        c_logs.body().addLayout(logs_btn_row)
+        f_log.setLayout(logs_btn_row)
 
-        c_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-        grid.addWidget(c_logs, 2, 0, 1, 2)
+        # c_logs.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        grid.addWidget(f_log, 2, 0, 1, 2)
 
         c_app = _Card("Appearance")
         self._cards.append(c_app)
@@ -504,7 +506,7 @@ class AboutTab(QWidget):
         self.lbl_footer.setStyleSheet(f"font-size: 10px; color: {footer_color};")
 
         btn_s = Style.Button.suggested if hasattr(Style.Button, 'suggested') else ""
-        self.lbl_log_path.setStyleSheet(val_s)
+        # self.lbl_log_path.setStyleSheet(val_s)
 
         self.scroll.apply_theme(is_dark)
 

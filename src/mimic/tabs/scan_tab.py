@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QTextEdit, QFrame, QGridLayout, QGroupBox,
     QComboBox, QDialog
 )
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import QUrl
 from mimic.widgets.qtgraph import GraphWithToolbar
 from mimic.assets.csstyle import Style
 from mimic.assets.theme_manager import ThemeManager
@@ -21,7 +23,7 @@ from mimic.widgets.ui_line_separator import qframe_line_separator
 
 
 SCAN_CONFIG_FILE = os.path.join(os.getcwd(), 'config', 'scan_axes.json')
-_LEFT_LAYOUT_WIDTH = 270
+_AXIS_INPUT_MAX_W = 110
 
 class ScanTab(QWidget):
     def __init__(self, loaded_instruments=None):
@@ -39,6 +41,7 @@ class ScanTab(QWidget):
         self._all_params:  list[tuple] = []   # all readable params → y-axis combo
 
         self.wait_conditions = {} # { param_id (str): should_wait (bool) }
+        self._scroll_width_set = False
 
         self._init_ui()
         self.populate_params()
@@ -61,7 +64,7 @@ class ScanTab(QWidget):
         config_layout = QVBoxLayout(config_container)
         config_layout.setContentsMargins(0, 0, 0, 0)
         config_layout.setSpacing(10)
-        config_container.setMinimumWidth(_LEFT_LAYOUT_WIDTH - 20)
+        config_container.setMinimumWidth(340)
 
         # Axes group
         self.grp_axes = QFrame()
@@ -154,29 +157,38 @@ class ScanTab(QWidget):
         self.btn_save.setEnabled(False)
 
         ctrl_layout.addWidget(self.btn_start, 0, 0, 1, 2)
-        ctrl_layout.addWidget(self.btn_pause, 1, 1)
-        ctrl_layout.addWidget(self.btn_abort, 1, 0)
+        ctrl_layout.addWidget(self.btn_pause, 1, 0)
+        ctrl_layout.addWidget(self.btn_abort, 1, 1)
         # ctrl_layout.addWidget(self.btn_save,  1, 1)
         config_layout.addWidget(self.grp_controls)
 
         self.lbl_status = QLabel("Ready")
+        self.btn_open_folder = QPushButton()
+        self.btn_open_folder.setIcon(CustomIcon.folder('#000'))
+        self.btn_open_folder.setToolTip("Open scan data folder")
+        self.btn_open_folder.setFixedSize(24, 24)
+        self.btn_open_folder.setFlat(True)
+        self.btn_open_folder.clicked.connect(self._open_data_folder)
         ctrl_layout.addWidget(qframe_line_separator(), 2, 0, 1, 2)
-        ctrl_layout.addWidget(self.lbl_status, 3, 0, 1, 2)
+
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self.lbl_status)
+        status_layout.addStretch()
+        status_layout.addWidget(self.btn_open_folder)
+
+        ctrl_layout.addLayout(status_layout, 3, 0, 1, 2)
 
         scroll = CustomScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(config_container)
-        # scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setMinimumWidth(_LEFT_LAYOUT_WIDTH)
-        scroll.setMaximumWidth(360)
-        # scroll.setFixedWidth(360)
+        scroll.setFixedWidth(360)
         self._scroll = scroll
         h_layout.addWidget(scroll)
 
         self.graph_widget = QFrame()
         graph_layout = QVBoxLayout(self.graph_widget)
         graph_layout.setContentsMargins(10, 10, 10, 10)
-
+        self.graph_widget.setMinimumWidth(500)
         axis_sel = QHBoxLayout()
         axis_sel.addWidget(QLabel("X-Axis:"))
         self.combo_x = QComboBox()
@@ -266,21 +278,21 @@ class ScanTab(QWidget):
         btn_del.clicked.connect(lambda: self.remove_axis_row(frame))
 
         line1.addWidget(combo)
+        line1.addStretch()
         line1.addWidget(QLabel("Steps:"))
         line1.addWidget(steps)
         line1.addWidget(btn_del)
-        line1.addStretch()
 
         line2 = QHBoxLayout()
         start = QLineEdit("")
-        #start.setFixedWidth(85)
+        start.setMaximumWidth(_AXIS_INPUT_MAX_W)
         stop  = QLineEdit("")
-        #stop.setFixedWidth(85)
+        stop.setMaximumWidth(_AXIS_INPUT_MAX_W)
         line2.addWidget(QLabel("Start:"))
         line2.addWidget(start)
+        line2.addStretch()
         line2.addWidget(QLabel("Stop:"))
         line2.addWidget(stop)
-        line2.addStretch()
 
         layout.addLayout(line1)
         layout.addLayout(line2)
@@ -559,6 +571,11 @@ class ScanTab(QWidget):
     def _on_scan_id_signal(self, id_signal = None):
         self.scan_id = id_signal
 
+    def _open_data_folder(self):
+        data_dir = os.path.join(os.getcwd(), 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        QDesktopServices.openUrl(QUrl.fromLocalFile(data_dir))
+
     def _update_estimated_time(self, *_):
         try:
             delay   = float(self.inp_delay.text())
@@ -690,6 +707,8 @@ class ScanTab(QWidget):
         self.combo_x.setStyleSheet(cb_style)
         self.combo_y.setStyleSheet(cb_style)
         self.style_combo.setStyleSheet(cb_style)
+
+        self.btn_open_folder.setIcon(CustomIcon.folder('#fff' if is_dark else '#000'))
 
         for row in self.axis_widgets:
             self._apply_theme_to_axis_row(*row)

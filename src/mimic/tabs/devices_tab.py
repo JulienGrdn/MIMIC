@@ -43,7 +43,7 @@ class InstrumentFrame(QFrame):
 
         self.layout = QVBoxLayout()
         self.setLayout(self.layout)
-        self.setFixedWidth(280)
+        self.setFixedWidth(270)
 
         self._init_header()
         for param in self.instrument.get_all_params():
@@ -264,7 +264,7 @@ class InstrumentPanel(QWidget):
         self.main_layout.setSpacing(0)
 
         self.sidebar = QListWidget()
-        self.sidebar.setFixedWidth(130)
+        self.sidebar.setMaximumWidth(130)
         self.sidebar.currentItemChanged.connect(self._on_category_changed)
         self.main_layout.addWidget(self.sidebar)
 

@@ -63,14 +63,17 @@ class FlowLayout(QLayout):
         spacing = self.spacing()
 
         wid = first_item.widget()
-        if wid:
-            spaceX = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
-                                                         QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal)
-            spaceY = spacing + wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
-                                                         QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical)
+        if spacing >= 0:
+            spaceX = spacing
+            spaceY = spacing
+        elif wid:
+            spaceX = wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
+                                               QSizePolicy.ControlType.PushButton, Qt.Orientation.Horizontal)
+            spaceY = wid.style().layoutSpacing(QSizePolicy.ControlType.PushButton,
+                                               QSizePolicy.ControlType.PushButton, Qt.Orientation.Vertical)
         else:
-            spaceX = spacing if spacing >= 0 else 10
-            spaceY = spacing if spacing >= 0 else 10
+            spaceX = 10
+            spaceY = 10
 
         effective_width = itemWidth + spaceX
         if effective_width <= 0:

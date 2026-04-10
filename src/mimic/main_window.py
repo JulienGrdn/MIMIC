@@ -27,8 +27,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("MIMIC")
         self.setup_os_identity()
-        self.resize(1440, 690)
-        self.setMinimumHeight(450)
+        self.resize(1340, 670)
+        self.setMinimumSize(1000, 500)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

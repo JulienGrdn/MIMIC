@@ -290,6 +290,8 @@ devices:
         type: "boolean"
         access: "read"
         status_suffix: "door"
+        special_channel: "('stability', 'self')"
+        passive_toggle_parameters: "['Close','Open', 'rgba(70, 120, 250, 1)', 'rgba(130, 130, 130, 1)']"
       - key: "laser_enable"
         label: "Laser Enable"
         type: "boolean"

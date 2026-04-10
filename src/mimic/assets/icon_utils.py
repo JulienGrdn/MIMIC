@@ -42,3 +42,9 @@ class CustomIcon:
         """Example: Returns a Close/X icon."""
         base_icon = QApplication.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarCloseButton)
         return CustomIcon._recolor(base_icon, color)
+
+    @staticmethod
+    def folder(color="white"):
+        """Returns a folder open icon in the specified color."""
+        base_icon = QApplication.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon)
+        return CustomIcon._recolor(base_icon, color)

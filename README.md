@@ -22,9 +22,7 @@ MIMIC is a **PyQt6-based GUI** for controlling and monitoring scientific instrum
 
 ### Screenshots
 
-| Devices | Live View | Scan | Settings |
-|---------|-----------|------|----------|
-| ![Devices tab](example/screenshots/devices.png) | ![Live view tab](example/screenshots/live_view.png) | ![Scan tab](example/screenshots/scan_tab.png) | ![Settings tab](example/screenshots/settings.png) |
+![Devices tab](example/screenshots/devices.png)  ![Live view tab](example/screenshots/live_view.png)  ![Scan tab](example/screenshots/scan_tab.png)  ![Settings tab](example/screenshots/settings.png)
 
 
 ## Installation
