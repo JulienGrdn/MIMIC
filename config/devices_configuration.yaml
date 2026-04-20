@@ -417,7 +417,7 @@ devices:
         command_suffix: "SET/en"
 
       - key: "p_gain"
-        label: "Super Proportional Gain"
+        label: "Proportional"
         type: "float"
         access: "read_write"
         status_suffix: "p"
