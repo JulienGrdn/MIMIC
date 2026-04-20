@@ -74,7 +74,7 @@ class GraphBlock(QFrame):
         layout = QHBoxLayout(self)
 
         controls_frame = QFrame()
-        controls_frame.setFixedWidth(200)
+        controls_frame.setFixedWidth(190)
         controls_frame.setMinimumHeight(280)
         controls_layout = QVBoxLayout(controls_frame)
         controls_layout.setContentsMargins(0, 0, 0, 0)
@@ -131,7 +131,7 @@ class GraphBlock(QFrame):
         controls_layout.addStretch()
 
         # Delete Button
-        self.btn_delete = QPushButton("Delete Live Update")
+        self.btn_delete = QPushButton("Delete Live View")
         self.btn_delete.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_delete.clicked.connect(self.delete_block)
         controls_layout.addWidget(self.btn_delete)
@@ -418,6 +418,7 @@ class LiveUpdateWidget(QWidget):
 
         self.layout = QVBoxLayout(self.main_frame)
         self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(10)
 
         self.scroll_area = CustomScrollArea()
 
@@ -434,7 +435,7 @@ class LiveUpdateWidget(QWidget):
         bottom_bar = QHBoxLayout()
         bottom_bar.addStretch()
 
-        self.btn_add = QPushButton("Add Live Update")
+        self.btn_add = QPushButton("Add Live View")
         self.btn_add.setStyleSheet(Style.Button.suggested)
         self.btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_add.clicked.connect(self.add_graph_block)

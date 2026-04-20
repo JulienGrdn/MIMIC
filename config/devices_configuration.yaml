@@ -416,6 +416,13 @@ devices:
         status_suffix: "en"
         command_suffix: "SET/en"
 
+      - key: "p_gain"
+        label: "Super Proportional Gain"
+        type: "float"
+        access: "read_write"
+        status_suffix: "p"
+        command_suffix: "SET/p"
+
   - id: "dummy_clock"
     name: "Atomic Clock Ref"
     nickname: "Rubidium"

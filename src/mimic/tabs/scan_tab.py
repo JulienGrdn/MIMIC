@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
     QComboBox, QDialog
 )
 from PyQt6.QtGui import QDesktopServices
-from PyQt6.QtCore import QUrl
+from PyQt6.QtCore import QUrl, Qt
 from mimic.widgets.qtgraph import GraphWithToolbar
 from mimic.assets.csstyle import Style
 from mimic.assets.theme_manager import ThemeManager
@@ -85,6 +85,7 @@ class ScanTab(QWidget):
         btn_row.addStretch()
         btn_add = QPushButton("Add Axis")
         btn_add.setStyleSheet(Style.Button.suggested)
+        btn_add.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_add.clicked.connect(self.add_axis_row)
         btn_row.addWidget(btn_add)
         config_layout.addWidget(self.grp_axes)
@@ -119,6 +120,7 @@ class ScanTab(QWidget):
 
         self.btn_wait_conditions = QPushButton("Manage Wait Conditions")
         self.btn_wait_conditions.setStyleSheet(Style.Button.suggested)
+        self.btn_wait_conditions.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_wait_conditions.clicked.connect(self._open_wait_conditions_dialog)
         settings_layout.addWidget(self.btn_wait_conditions)
 
@@ -140,15 +142,18 @@ class ScanTab(QWidget):
 
         self.btn_start = QPushButton("Start Scan")
         self.btn_start.setStyleSheet(Style.Button.start)
+        self.btn_start.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_start.clicked.connect(self._start_scan)
 
         self.btn_pause = QPushButton("Pause")
         self.btn_pause.setCheckable(True)
         self.btn_pause.setStyleSheet(Style.Button.reset)
+        self.btn_pause.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pause.clicked.connect(self._toggle_pause)
 
         self.btn_abort = QPushButton("Abort")
         self.btn_abort.setStyleSheet(Style.Button.stop)
+        self.btn_abort.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_abort.setEnabled(False)
         self.btn_abort.clicked.connect(self._abort_scan)
 
@@ -167,6 +172,7 @@ class ScanTab(QWidget):
         self.btn_open_folder.setIcon(CustomIcon.folder('#000'))
         self.btn_open_folder.setToolTip("Open scan data folder")
         self.btn_open_folder.setFixedSize(24, 24)
+        self.btn_open_folder.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_open_folder.setFlat(True)
         self.btn_open_folder.clicked.connect(self._open_data_folder)
         ctrl_layout.addWidget(qframe_line_separator(), 2, 0, 1, 2)

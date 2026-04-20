@@ -1,4 +1,3 @@
-
 class Palette:
 
     # Fonts - Adwaita prefers Cantarell or Inter
@@ -257,7 +256,23 @@ class Style:
         container_light = f'''
             QFrame {{
                 background-color: {Palette.L_BG_FRAME_1};
-                border: none;
+                border: 0px solid {Palette.L_BORDER};
+                border-radius: 8px;
+            }}
+        '''
+
+        instrument_card_light = f'''
+            InstrumentFrame {{
+                background-color: {Palette.L_BG_FRAME_1};
+                border: 1px solid {Palette.L_BORDER};
+                border-radius: 8px;
+            }}
+        '''
+
+        instrument_card_dark = f'''
+            InstrumentFrame {{
+                background-color: {Palette.D_BG_FRAME_1};
+                border: 1px solid {Palette.D_BORDER};
                 border-radius: 8px;
             }}
         '''
@@ -276,9 +291,8 @@ class Style:
                 border: 0px solid {Palette.D_BORDER};
                 border-radius: 8px;
             }}
-            
-            
         '''
+
 
     class Button:
         # --- Standard/Neutral Buttons ---
@@ -407,6 +421,10 @@ class Style:
                 border-radius: 6px;LineEdit
                 border: 0px solid {Palette.L_BORDER};
             }}
+            QLineEdit:focus {{
+                border: 2px solid {Palette.L_BORDER_FOCUS};
+                padding: 2px, 4px;
+            }}
         '''
 
         line_edit_light_white = f'''
@@ -416,6 +434,10 @@ class Style:
                 padding: 2px;
                 border-radius: 6px;
                 border: 0px solid {Palette.L_BORDER};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {Palette.L_BORDER_FOCUS};
+                padding: 2px, 4px;
             }}
         '''
 
@@ -427,6 +449,10 @@ class Style:
                 border-radius: 6px;
                 border: 0px solid {Palette.D_BORDER};
             }}
+            QLineEdit:focus {{
+                border: 2px solid {Palette.D_BORDER_FOCUS};
+                padding: 2px, 4px;
+            }}
         '''
 
         text_edit_light = f'''
@@ -435,7 +461,11 @@ class Style:
                 color: {Palette.L_TEXT_SEC};
                 padding: 4px;
                 border-radius: 6px;
-                border: 1px solid {Palette.L_BORDER};
+                border: 0px solid {Palette.L_BORDER};
+            }}
+            QTextEdit:focus {{
+                border: 2px solid {Palette.L_BORDER_FOCUS};
+                padding: 4px, 4px;
             }}
         '''
 
@@ -1168,6 +1198,17 @@ class Style:
                 background-color: rgba(255, 255, 255, 0.13);
             }}
         """
+
+
+from PyQt6.QtWidgets import QGraphicsDropShadowEffect
+from PyQt6.QtGui import QColor
+def get_shadow(blur_radius: int = 15, xoff: int = 0, yoff: int = 0, qcolor: QColor = QColor(0, 0, 0, 60)) -> QGraphicsDropShadowEffect:
+    shadow = QGraphicsDropShadowEffect()
+    shadow.setBlurRadius(blur_radius)
+    shadow.setXOffset(xoff)
+    shadow.setYOffset(yoff)
+    shadow.setColor(qcolor)
+    return shadow
 
 
 from typing import Union, Optional

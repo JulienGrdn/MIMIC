@@ -10,8 +10,6 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
-    QPushButton,
     QVBoxLayout,
     QWidget,
     QListWidget,
@@ -28,6 +26,7 @@ from mimic.assets.instance_state import InstanceState
 from mimic.widgets.popups import Popups
 from mimic.widgets.ui_line_separator import qframe_line_separator
 from mimic.widgets.ui_passive_toggle import StabilityIndicator
+from mimic.widgets.searchstylewidget import CombinedInputWidget
 
 class InstrumentFrame(QFrame):
     """
@@ -42,6 +41,8 @@ class InstrumentFrame(QFrame):
         self._rate_labels: list = []
 
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(10, 10, 10, 10)
+        self.layout.setSpacing(6)
         self.setLayout(self.layout)
         self.setFixedWidth(270)
 
@@ -115,15 +116,21 @@ class InstrumentFrame(QFrame):
         if param.label is not None:
             row_layout.addWidget(QLabel(f"{param.label}:"))
 
-        input_widget = self._create_input_widget(param, row_layout)
+        # input_widget = self._create_input_widget(param, row_layout)
 
         if param.param_type != "bool" and param.ui_type != 'stability_indicator':
-            btn = QPushButton("Send")
-            btn.setStyleSheet(Style.Button.suggested)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            CIW = CombinedInputWidget("Send", str(param.unit))
+            CIW.submitted.connect(lambda x, p = param : self.send_command(p, x))
+            self.styled_widgets.append((CIW, "Input.combined"))
+            row_layout.addWidget(CIW)
+            # btn = QPushButton("Send")
+            # btn.setStyleSheet(Style.Button.suggested)
+            # btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            #
+            # btn.clicked.connect(lambda _, p=param, w=input_widget: self.send_command(p, w.text()))
+            # row_layout.addWidget(btn)
 
-            btn.clicked.connect(lambda _, p=param, w=input_widget: self.send_command(p, w.text()))
-            row_layout.addWidget(btn)
+        self._create_input_widget(param, row_layout)
 
         self.layout.addLayout(row_layout)
 
@@ -170,15 +177,15 @@ class InstrumentFrame(QFrame):
                 param.update_widget = widget.set_state
             return widget
 
-        elif param.param_type in ["float", "int", "str"] or param.ui_type == 'wm_freq':
-            widget = QLineEdit()
-            widget.setObjectName(f"inst_{self.instrument.id}_{param.name}")
-            self.styled_widgets.append((widget, "Input.line_edit"))
-            widget.setPlaceholderText(str(param.unit))
-            parent_layout.addWidget(widget)
-            if hasattr(param, 'update_widget'):
-                param.update_widget = widget.setText
-            return widget
+        # elif param.param_type in ["float", "int", "str"] or param.ui_type == 'wm_freq':
+        #     widget = QLineEdit()
+        #     widget.setObjectName(f"inst_{self.instrument.id}_{param.name}")
+        #     self.styled_widgets.append((widget, "Input.line_edit"))
+        #     widget.setPlaceholderText(str(param.unit))
+        #     parent_layout.addWidget(widget)
+        #     if hasattr(param, 'update_widget'):
+        #         param.update_widget = widget.setText
+        #     return widget
 
         elif param.ui_type == 'input':
             widget = QLabel("_")
@@ -229,9 +236,10 @@ class InstrumentFrame(QFrame):
         is_dark = theme == "dark"
 
         if is_dark:
-            self.setStyleSheet(Style.Frame.container_dark)
+            self.setStyleSheet(Style.Frame.container_dark)# + Style.Frame.instrument_card_dark)
         else:
-            self.setStyleSheet(Style.Frame.container_light)
+            self.setStyleSheet(Style.Frame.container_light)# + Style.Frame.instrument_card_light)
+
 
         for widget, style_key in self.styled_widgets:
             # if style_key == "Label.title":
@@ -242,6 +250,8 @@ class InstrumentFrame(QFrame):
                 widget.setStyleSheet(Style.Label.frequency_big_dark if is_dark else Style.Label.frequency_big)
             elif style_key == "Input.line_edit":
                 widget.setStyleSheet(Style.Input.line_edit_dark if is_dark else Style.Input.line_edit_light)
+            elif style_key == "Input.combined":
+                widget.apply_theme(is_dark)
             elif style_key == "Label.rate":
                 color = "#555" if is_dark else "#aaa"
                 widget.setStyleSheet(f"font-size: 8pt; color: {color}; font-style: italic;")
