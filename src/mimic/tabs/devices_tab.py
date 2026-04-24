@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QPushButton,
     QVBoxLayout,
     QWidget,
     QListWidget,
@@ -73,6 +74,14 @@ class InstrumentFrame(QFrame):
         """Builds the UI row(s) for one parameter."""
 
         if param.ui_type == 'hidden':
+            return
+
+        if param.ui_type == 'button':
+            btn = QPushButton(param.label or param.name)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, p=param: self.send_command(p, getattr(p, 'button_payload', '')))
+            self.styled_widgets.append((btn, "Button.action"))
+            self.layout.addWidget(btn)
             return
 
         if param.ui_type == 'input':
@@ -258,6 +267,8 @@ class InstrumentFrame(QFrame):
             elif style_key == "Label.title":
                 color = "#ffe" if is_dark else "#445"
                 widget.setStyleSheet(f"font-size:9pt; letter-spacing:1.5px; color:{color}; font-weight:bold;")
+            elif style_key == "Button.action":
+                widget.setStyleSheet(Style.Button.suggested)
 
 
 class InstrumentPanel(QWidget):

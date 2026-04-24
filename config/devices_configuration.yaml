@@ -74,6 +74,15 @@ devices:
         status_suffix: "output/2"
         command_suffix: "SET/output/2"
 
+      - key: "sep2"
+        type: "ui_sep"
+
+      - key: "reset_device"
+        label: "Reset Device"
+        type: "button"
+        payload: "RESET"
+        command_suffix: "SET/reset"
+
   - id: "dummy_sensor"
     name: "Dummy Sensor"
     nickname: "DS"
@@ -475,3 +484,15 @@ devices:
         access: "read"
         unit: "%"
         status_suffix: "power"
+        
+  - id: "status"
+    name: "Experiment Status"
+    nickname: "expstat"
+    device_cat: "Label"
+    mqtt_base_topic: "exp"
+    channels:
+      - key: "status"
+        label: "Status"
+        type: "str"
+        access: "read"
+        status_suffix: "status"

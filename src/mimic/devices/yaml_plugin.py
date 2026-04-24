@@ -113,6 +113,8 @@ class GenericYamlDevice(InstrumentBase):
             internal_ptype = 'float'
         elif p_type == 'boolean':
             internal_ptype = 'bool'
+        elif p_type == 'button':
+            internal_ptype = 'button'
 
         setter, ui_type = None, False
         cmd_suffix = chan_config.get('command_suffix')
@@ -122,6 +124,10 @@ class GenericYamlDevice(InstrumentBase):
             ui_type = 'wm_freq'
         if access in ['read_write', 'write'] and cmd_suffix:
             setter = partial(self.set_value_wrapper, cmd_suffix)
+        if p_type == 'button':
+            ui_type = 'button'
+            if cmd_suffix:
+                setter = partial(self.set_value_wrapper, cmd_suffix)
 
         param = Parameter(
             name=key,
@@ -171,6 +177,9 @@ class GenericYamlDevice(InstrumentBase):
 
             except Exception as e:
                 logger.warning("[%s] Could not parse passive_toggle_parameters '%s' for '%s': %s", self.name, passive_toggle_parameters, key, e)
+
+        if p_type == 'button':
+            param.button_payload = chan_config.get('payload', '')
 
         if p_type == 'ui_sep':self.add_parameter(Parameter(name = param.name, ui_type = 'ui_sep', label = '', param_type = 'ui_sep'))
         else: self.add_parameter(param)

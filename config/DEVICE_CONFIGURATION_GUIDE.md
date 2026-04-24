@@ -88,6 +88,7 @@ Each entry under `channels:` defines one parameter (row) inside a device card.
 |---|---|---|---|
 | `special_channel` | string | No | Couples this channel to special UI behaviour. See [Special Channels](#special-channels). |
 | `passive_toggle_parameters` | string | No | Customises the visual appearance of a boolean stability indicator. See [Customising Stability Badges](#customising-stability-badges). |
+| `payload` | string | Conditional | Fixed string payload published when a `type: "button"` channel is clicked. Required for button channels. |
 
 
 
@@ -101,6 +102,7 @@ The `type` field controls both the data type used internally and the widget rend
 | `"integer"` | `int`         | Integer readout and/or line-edit input | Use for counts, RPM, relay indices, etc.                                                                           |
 | `"boolean"` | `bool`        | Toggle button | Renders as an animated toggle.                                                                                     |
 | `"str"` | `str`         | Text readout and/or line-edit input | Use for free-form strings (e.g. timestamps, status messages).                                                      |
+| `"button"` | -             | Clickable action button | Publishes a fixed `payload` string to `command_suffix` when clicked. No readout. See [Button Channels](#button-channels). |
 | `"ui_sep"` | -             | Visual separator | Inserts a horizontal divider line in the device card. No MQTT interaction. Only `key` is required; all other fields are ignored. |
 
 > **Note:** When `special_device: "wavemeter"` is set at the device level, all channels of type `"float"` or `"integer"` are rendered as rich wavemeter frequency readouts regardless of their individual `type` field.
@@ -116,6 +118,27 @@ The `access` field controls which widgets appear for a channel.
 | `"read"` | Yes | No | Readout label only (no user input) |
 | `"write"` | No | Yes | Input widget only (no live readout) |
 | `"read_write"` | Yes | Yes | Both readout and input widget |
+
+
+## Button Channels
+
+A `type: "button"` channel renders as a labelled action button on the device card. When clicked, it publishes a fixed string payload to the MQTT command topic — no user input is involved.
+
+Required fields: `key`, `type: "button"`, `command_suffix`, `payload`.
+The `access` and `status_suffix` fields are ignored for button channels.
+
+```yaml
+- key: "reset_device"
+  label: "Reset Device"
+  type: "button"
+  payload: "RESET"
+  command_suffix: "SET/reset"
+```
+
+This publishes the string `"RESET"` to `<mqtt_base_topic>/SET/reset` each time the button is pressed.
+
+> **Tip:** Use `label` to give the button a meaningful name. If `label` is omitted, the `key` is used as the button text.
+
 
 
 ## Payload Formats
@@ -320,6 +343,13 @@ devices:
         unit: "ms"
         command_suffix: "SET/pulse"
 
+      # Action button: publishes "RESET" to powersupply/sn42/SET/reset on click
+      - key: "reset_device"
+        label: "Reset Device"
+        type: "button"
+        payload: "RESET"
+        command_suffix: "SET/reset"
+
   # --- Laser lock system with self-stability indicator ---
   - id: "laser_lock"
     name: "Laser Locking System"
@@ -392,11 +422,12 @@ Channel
 ├── key              required  Unique ID within device
 ├── label            optional  Display label
 ├── description      optional  Tooltip / documentation note
-├── type             required  float | integer | boolean | str | ui_sep
-├── access           optional  read | write | read_write  (default: read_write)
+├── type             required  float | integer | boolean | str | button | ui_sep
+├── access           optional  read | write | read_write  (default: read_write; ignored for button)
 ├── unit             optional  Display unit string
 ├── status_suffix    cond.     Subscribe topic suffix (needed for read/read_write)
-├── command_suffix   cond.     Publish topic suffix (needed for write/read_write)
+├── command_suffix   cond.     Publish topic suffix (needed for write/read_write/button)
+├── payload          cond.     Fixed string published on button click (required for button)
 ├── mqtt_payload_format  opt.  ('dict','key') | ('list', index)
 ├── special_channel  optional  ('stability','self') | ('stability','key') | ('timestamp','key')
 └── passive_toggle_parameters  optional  ['true_label','false_label','rgba(...)','rgba(...)']
