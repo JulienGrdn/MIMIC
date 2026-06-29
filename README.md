@@ -1,6 +1,6 @@
 # MIMIC - MQTT Interface for Modular Instrument Control
 
-[![Python](https://img.shields.io/badge/python-%3E%3D3.11-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-%3E%3D3.14-blue)](https://www.python.org/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![MQTT](https://img.shields.io/badge/transport-MQTT%20%28paho%29-purple)](https://eclipse.dev/paho/)
 
